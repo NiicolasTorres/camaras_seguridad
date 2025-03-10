@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.views.decorators.http import require_POST
 import face_recognition
 import socket
+import queue
 
 def home(request):
     cameras = Camera.objects.all()  # Obtener todas las cámaras
@@ -137,33 +138,76 @@ class VideoStream(threading.Thread):
         self.running = True
         self.lock = threading.Lock()
         self.frame = None
+        self.frame_queue = queue.Queue(maxsize=5)  # Buffer para almacenar frames
+
+        # Hilo para el procesamiento de frames
+        self.processing_thread = threading.Thread(target=self.process_frames, daemon=True)
+        self.processing_thread.start()
 
     def run(self):
+        """ Hilo de captura de frames desde la cámara IP """
         try:
             stream = requests.get(self.url, stream=True, timeout=10)
             bytes_data = b""
-            for chunk in stream.iter_content(chunk_size=4096):
+            for chunk in stream.iter_content(chunk_size=1024):  # Tamaño de chunk reducido para mayor integridad
                 if not self.running:
                     break
                 bytes_data += chunk
-                a = bytes_data.find(b'\xff\xd8')
-                b = bytes_data.find(b'\xff\xd9')
-                if a != -1 and b != -1:
-                    jpg = bytes_data[a:b + 2]
-                    bytes_data = bytes_data[b + 2:]
-                    frame = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
-                    if frame is not None:
-                        frame = cv2.resize(frame, (640, 480))
-                        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                        face_locations = face_recognition.face_locations(rgb_frame)
-                        for (top, right, bottom, left) in face_locations:
-                            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-                        with self.lock:
-                            self.frame = frame
+
+                # Intentar extraer frames completos del buffer
+                while True:
+                    a = bytes_data.find(b'\xff\xd8')  # Inicio de imagen JPEG
+                    b = bytes_data.find(b'\xff\xd9')  # Fin de imagen JPEG
+
+                    if a != -1 and b != -1 and b > a:
+                        jpg = bytes_data[a:b + 2]
+                        bytes_data = bytes_data[b + 2:]
+
+                        # Validar tamaño del JPEG para evitar datos incompletos
+                        if len(jpg) > 100:
+                            try:
+                                frame = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
+                            except cv2.error as e:
+                                print(f"Error decodificando la imagen: {e}")
+                                continue
+                            if frame is not None:
+                                frame = cv2.resize(frame, (640, 480))
+                                try:
+                                    self.frame_queue.put(frame, timeout=0.1)  # Agregar el frame a la cola sin bloquear
+                                except queue.Full:
+                                    pass  # Si la cola está llena, descarta el frame
+                            else:
+                                print("Advertencia: OpenCV no pudo decodificar el frame.")
+                        else:
+                            print("Advertencia: Frame JPEG demasiado pequeño, descartado.")
+                    else:
+                        break  # Se necesitan más datos para encontrar un frame completo
+
+        except requests.exceptions.RequestException as e:
+            print(f"Error de conexión con la cámara: {e}")
         except Exception as e:
             print(f"Error en transmisión: {e}")
 
+    def process_frames(self):
+        """ Hilo de procesamiento de frames (detección de rostros) """
+        while self.running:
+            try:
+                frame = self.frame_queue.get(timeout=0.1)  # Obtiene un frame de la cola
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                face_locations = face_recognition.face_locations(rgb_frame, model="hog")  # Modelo más rápido en CPU
+                
+                for (top, right, bottom, left) in face_locations:
+                    cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+
+                with self.lock:
+                    self.frame = frame
+            except queue.Empty:
+                continue  # Si no hay frames en la cola, sigue esperando
+            except Exception as e:
+                print(f"Error en procesamiento de frames: {e}")
+
     def get_frame(self):
+        """ Devuelve el frame procesado en formato JPEG """
         with self.lock:
             if self.frame is not None:
                 _, buffer = cv2.imencode('.jpg', self.frame, [int(cv2.IMWRITE_JPEG_QUALITY), 70])
@@ -172,7 +216,10 @@ class VideoStream(threading.Thread):
 
     def stop(self):
         self.running = False
+        self.join()  # Espera a que el hilo de captura termine
+        self.processing_thread.join()  # Espera a que el hilo de procesamiento termine
 
+# Diccionario para manejar múltiples streams
 stream_threads = {}
 
 # Vista para mostrar la transmisión de video en vivo de la cámara predeterminada

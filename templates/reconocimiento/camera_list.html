@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lista de Cámaras{% endblock %}
+
+{% block content %}
+  <h2 class="mt-4">Lista de Cámaras</h2>
+  
+  <div id="status-message" class="alert alert-info">
+    Esperando para detectar cámaras...
+  </div>
+  
+  <button class="btn btn-primary" onclick="startDetection()">Iniciar detección</button>
+
+  <div class="row mt-3" id="camera-list">
+    {% for camera in cameras %}
+      <div class="col-md-4 mt-3">
+        <div class="card">
+          <img src="http://{{ request.get_host }}/camera_feed/{{ camera.id }}/" class="card-img-top" alt="{{ camera.name }}">
+          <div class="card-body">
+            <h5 class="card-title">{{ camera.name }}</h5>
+            <p class="card-text">Ubicación: {{ camera.location }}</p>
+            <p class="card-text">IP: {{ camera.ip_address }}</p>
+            <p class="card-text">MAC: {{ camera.mac_address }}</p>
+            <button class="btn btn-success" onclick="setDefaultCamera('{{ camera.id }}')">
+              Usar como predeterminada
+            </button>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+  
+  <script>
+    var csrftoken = '{{ csrf_token }}';
+  </script>
+  <script src="{% static 'js/script.js' %}"></script>
+{% endblock %}

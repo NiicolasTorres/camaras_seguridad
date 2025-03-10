@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Inicio - Mi Proyecto{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center">Bienvenido a Mi Proyecto de Seguridad</h1>
+    <p class="text-center">Monitorea tus cámaras en tiempo real y controla las grabaciones.</p>
+
+    <div class="row">
+        {% for camera in cameras %}
+        <div class="col-md-4 col-sm-6 mb-4">
+            <div class="card shadow-sm">
+                <img src="http://{{ request.get_host }}/camera_feed/{{ camera.id }}/" class="card-img-top" alt="{{ camera.name }}">
+                <div class="card-body">
+                    <h5 class="card-title">{{ camera.name }}</h5>
+                    <p class="card-text">Ubicación: {{ camera.location }}</p>
+                    <a class="btn btn-info" href="{% url 'camera_feed' camera.id %}">Ver Cámara</a>
+
+                    <!-- Botón para iniciar la grabación -->
+                    <button class="btn btn-success mt-3 start-recording" 
+                        data-camera-id="{{ camera.id }}" 
+                        data-url="{% url 'start_recording' camera.id %}">
+                        Grabar
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'js/recording-script.js' %}?v=1.1"></script>
+{% endblock %}

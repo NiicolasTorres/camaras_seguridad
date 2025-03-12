@@ -2,22 +2,24 @@ import cv2
 import requests
 from django.http import StreamingHttpResponse, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Camera
 from scapy.all import ARP, Ether, srp
 import json
 import numpy as np
-from .models import Camera
 import os
 import threading
 import time
 from django.views.decorators.csrf import csrf_protect, csrf_exempt
 from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
 import face_recognition
 import socket
 import queue
+from .models import Person, DetectionEvent, Camera
+from django.core.files.base import ContentFile
+
 
 def home(request):
-    cameras = Camera.objects.all()  # Obtener todas las cámaras
+    cameras = Camera.objects.all()  
     return render(request, 'home.html', {'cameras': cameras})
 
 def get_local_ip():
@@ -32,7 +34,6 @@ def get_local_ip():
         s.close()
     return local_ip
 
-# Función para escanear la red y encontrar dispositivos
 def scan_network(local_ip):
     ip_parts = local_ip.split('.')
     network_range = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
@@ -49,29 +50,28 @@ def scan_network(local_ip):
         devices.append({'ip': ip, 'mac': mac})
     
     return devices
-# Función para verificar si una IP es una cámara IP
+
 def is_camera(mac_address):
     try:
         camera = Camera.objects.get(mac_address=mac_address)
-        camera_ip = camera.ip_address  # Usar la última IP conocida
-        # Simplemente se construye la URL sin intentar conectar
+        camera_ip = camera.ip_address  
         return f"http://{camera_ip}:8080/video"
     except Camera.DoesNotExist:
         return None
 
 def detect_cameras(request):
-    local_ip = get_local_ip()  # Obtener la IP local
-    devices = scan_network(local_ip)  # Escanear la red
+    local_ip = get_local_ip()  
+    devices = scan_network(local_ip)  
     cameras_list = []
 
     for device in devices:
         mac = device['mac']
         ip = device['ip']
-        print(f"Buscando cámara con MAC: {mac}")  # Depuración
+        print(f"Buscando cámara con MAC: {mac}")  
         try:
-            # Búsqueda insensible a mayúsculas
+
             camera = Camera.objects.get(mac_address__iexact=mac)
-            print(f"Cámara encontrada: {camera}")  # Depuración
+            print(f"Cámara encontrada: {camera}") 
             camera_url = f"http://{camera.ip_address}:8080/video"
             cameras_list.append({
                 "id": camera.id,
@@ -83,8 +83,7 @@ def detect_cameras(request):
                 "registered": True
             })
         except Camera.DoesNotExist:
-            print(f"No se encontró cámara para MAC: {mac}")  # Depuración
-            # Agregar el dispositivo detectado aunque no esté registrado
+            print(f"No se encontró cámara para MAC: {mac}") 
             camera_url = f"http://{ip}:8080/video"
             cameras_list.append({
                 "id": None,
@@ -98,7 +97,7 @@ def detect_cameras(request):
 
     return JsonResponse({'cameras': cameras_list})
 
-# Guarda una cámara como predeterminada
+
 def set_default_camera(request, camera_id):
     try:
         camera = Camera.objects.get(id=camera_id)
@@ -110,7 +109,6 @@ def set_default_camera(request, camera_id):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-# Obtiene la cámara predeterminada y transmite video
 def camera_feed(request, camera_id):
     camera = get_object_or_404(Camera, id=camera_id)
     camera_ip = camera.ip_address
@@ -128,19 +126,33 @@ def camera_feed(request, camera_id):
 
     return StreamingHttpResponse(generate(), content_type='multipart/x-mixed-replace; boundary=frame')
 
+MEDIA_FACE_PATH = "media/faces/"
 
-# Transmisión de video con detección facial
+def save_face_image(frame, top, right, bottom, left):
+    """ Guarda la imagen del rostro detectado """
+    if not os.path.exists(MEDIA_FACE_PATH):
+        os.makedirs(MEDIA_FACE_PATH)
+
+    face_image = frame[top:bottom, left:right]
+    _, buffer = cv2.imencode('.jpg', face_image)
+    return buffer.tobytes()
+
+def recognize_face(encoding, known_encodings):
+    """ Compara el rostro detectado con los registrados """
+    matches = face_recognition.compare_faces(known_encodings, encoding, tolerance=0.6)
+    return matches
+
 class VideoStream(threading.Thread):
-    def __init__(self, camera_ip):
+    def __init__(self, camera):
         super().__init__()
-        self.camera_ip = camera_ip
-        self.url = f"http://{camera_ip}:8080/video"
+        self.camera = camera  # Guardamos el objeto Cámara
+        self.camera_ip = camera.ip_address
+        self.url = f"http://{self.camera_ip}:8080/video"
         self.running = True
         self.lock = threading.Lock()
         self.frame = None
-        self.frame_queue = queue.Queue(maxsize=5)  # Buffer para almacenar frames
-
-        # Hilo para el procesamiento de frames
+        self.frame_queue = queue.Queue(maxsize=5)
+        self.unknown_count = 0  # Contador para fotos de rostros desconocidos
         self.processing_thread = threading.Thread(target=self.process_frames, daemon=True)
         self.processing_thread.start()
 
@@ -149,21 +161,17 @@ class VideoStream(threading.Thread):
         try:
             stream = requests.get(self.url, stream=True, timeout=10)
             bytes_data = b""
-            for chunk in stream.iter_content(chunk_size=1024):  # Tamaño de chunk reducido para mayor integridad
+            for chunk in stream.iter_content(chunk_size=1024):
                 if not self.running:
                     break
                 bytes_data += chunk
 
-                # Intentar extraer frames completos del buffer
                 while True:
-                    a = bytes_data.find(b'\xff\xd8')  # Inicio de imagen JPEG
-                    b = bytes_data.find(b'\xff\xd9')  # Fin de imagen JPEG
-
+                    a = bytes_data.find(b'\xff\xd8')  # Inicio JPEG
+                    b = bytes_data.find(b'\xff\xd9')  # Fin JPEG
                     if a != -1 and b != -1 and b > a:
                         jpg = bytes_data[a:b + 2]
                         bytes_data = bytes_data[b + 2:]
-
-                        # Validar tamaño del JPEG para evitar datos incompletos
                         if len(jpg) > 100:
                             try:
                                 frame = cv2.imdecode(np.frombuffer(jpg, dtype=np.uint8), cv2.IMREAD_COLOR)
@@ -173,36 +181,88 @@ class VideoStream(threading.Thread):
                             if frame is not None:
                                 frame = cv2.resize(frame, (640, 480))
                                 try:
-                                    self.frame_queue.put(frame, timeout=0.1)  # Agregar el frame a la cola sin bloquear
+                                    self.frame_queue.put(frame, timeout=0.1)
                                 except queue.Full:
-                                    pass  # Si la cola está llena, descarta el frame
+                                    pass
                             else:
                                 print("Advertencia: OpenCV no pudo decodificar el frame.")
                         else:
                             print("Advertencia: Frame JPEG demasiado pequeño, descartado.")
                     else:
-                        break  # Se necesitan más datos para encontrar un frame completo
-
+                        break
         except requests.exceptions.RequestException as e:
             print(f"Error de conexión con la cámara: {e}")
         except Exception as e:
             print(f"Error en transmisión: {e}")
 
     def process_frames(self):
-        """ Hilo de procesamiento de frames (detección de rostros) """
+        """ Procesa los frames, detecta rostros, anota la imagen y crea eventos de detección """
         while self.running:
             try:
-                frame = self.frame_queue.get(timeout=0.1)  # Obtiene un frame de la cola
+                frame = self.frame_queue.get(timeout=0.1)
+                # Crear una copia para realizar las anotaciones sin afectar el frame original
+                annotated_frame = frame.copy()
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                face_locations = face_recognition.face_locations(rgb_frame, model="hog")  # Modelo más rápido en CPU
-                
-                for (top, right, bottom, left) in face_locations:
-                    cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+                face_locations = face_recognition.face_locations(rgb_frame, model="hog")
+                face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+                # Cargar rostros registrados
+                persons = list(Person.objects.all())
+                known_encodings = []
+                persons_with_encodings = []
+                for p in persons:
+                    if p.encodings:
+                        known_encodings.append(np.array(p.encodings))
+                        persons_with_encodings.append(p)
+
+                for (top, right, bottom, left), encoding in zip(face_locations, face_encodings):
+                    # Obtener imagen del rostro detectado
+                    face_image = save_face_image(frame, top, right, bottom, left)
+                    
+                    # Comparar con la base de datos
+                    matched = recognize_face(encoding, known_encodings)
+                    if any(matched):
+                        idx = matched.index(True)
+                        matched_person = persons_with_encodings[idx]
+                        print(f"🔴 Alerta: Se detectó a {matched_person.name}")
+                        # Crear evento de detección para rostro reconocido
+                        DetectionEvent.objects.create(
+                            person=matched_person,
+                            camera=self.camera,
+                            image=ContentFile(face_image, name=f"{matched_person.id}_{int(time.time())}.jpg")
+                        )
+                        # Dibujar rectángulo verde y etiqueta con el nombre
+                        cv2.rectangle(annotated_frame, (left, top), (right, bottom), (0, 255, 0), 2)
+                        cv2.putText(annotated_frame, matched_person.name, (left, top - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                    else:
+                        label = "Desconocido"
+                        # Limitar a 10 fotos de rostros desconocidos
+                        if self.unknown_count < 10:
+                            print("⚠ Rostro no reconocido. Guardando foto y codificación...")
+                            unknown_person = Person.objects.create(name=label)
+                            unknown_person.photo.save(f"{unknown_person.id}.jpg", ContentFile(face_image))
+                            # Guardar la codificación en el campo encodings (convertida a lista)
+                            unknown_person.encodings = encoding.tolist()
+                            unknown_person.save()
+                            self.unknown_count += 1
+                        else:
+                            print("⚠ Rostro no reconocido. Límite de fotos alcanzado.")
+                        # Crear evento de detección para rostro desconocido
+                        DetectionEvent.objects.create(
+                            person=None,
+                            camera=self.camera,
+                            image=ContentFile(face_image, name=f"desconocido_{int(time.time())}.jpg")
+                        )
+                        # Dibujar rectángulo rojo y etiqueta "Desconocido"
+                        cv2.rectangle(annotated_frame, (left, top), (right, bottom), (0, 0, 255), 2)
+                        cv2.putText(annotated_frame, label, (left, top - 10),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
                 with self.lock:
-                    self.frame = frame
+                    self.frame = annotated_frame
             except queue.Empty:
-                continue  # Si no hay frames en la cola, sigue esperando
+                continue
             except Exception as e:
                 print(f"Error en procesamiento de frames: {e}")
 
@@ -216,29 +276,27 @@ class VideoStream(threading.Thread):
 
     def stop(self):
         self.running = False
-        self.join()  # Espera a que el hilo de captura termine
-        self.processing_thread.join()  # Espera a que el hilo de procesamiento termine
+        self.join()
+        self.processing_thread.join()
 
-# Diccionario para manejar múltiples streams
+
 stream_threads = {}
 
-# Vista para mostrar la transmisión de video en vivo de la cámara predeterminada
 def camera_feed(request, camera_id):
     camera = get_object_or_404(Camera, id=camera_id)
-    camera_ip = camera.ip_address
-
-    if camera_ip not in stream_threads:
-        stream_threads[camera_ip] = VideoStream(camera_ip)
-        stream_threads[camera_ip].start()
+    if camera.ip_address not in stream_threads:
+        stream_threads[camera.ip_address] = VideoStream(camera)
+        stream_threads[camera.ip_address].start()
 
     def generate():
         while True:
-            frame = stream_threads[camera_ip].get_frame()
+            frame = stream_threads[camera.ip_address].get_frame()
             if frame:
-                yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             time.sleep(0.03)
-
     return StreamingHttpResponse(generate(), content_type='multipart/x-mixed-replace; boundary=frame')
+
 
 def stop_camera_feed(camera_ip):
     if camera_ip in stream_threads:
@@ -255,22 +313,19 @@ def camera_feed_template(request, camera_id):
         return JsonResponse({"error": "No se encontró la cámara."}, status=404)
 
 
-# Vista para mostrar la lista de cámaras disponibles
 def camera_list(request):
     cameras = Camera.objects.all()
     return render(request, "reconocimiento/camera_list.html", {"cameras": cameras})
 
-@csrf_exempt  # O usa @csrf_protect y envía el token desde JS
+@csrf_exempt  
 @require_POST
 def register_and_set_default_camera(request):
     data = json.loads(request.body)
     mac = data.get('mac')
     ip = data.get('ip')
-    # Puedes usar valores por defecto o incluso solicitar al usuario que los complete
     name = data.get('name') or 'Cámara Detectada'
     location = data.get('location') or 'Desconocido'
-    
-    # Crea el registro en la BD (asumiendo que el modelo Camera tiene el campo is_default)
+
     camera = Camera.objects.create(
         name=name,
         location=location,

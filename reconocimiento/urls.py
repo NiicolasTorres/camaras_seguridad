@@ -1,6 +1,7 @@
 from django.urls import path
-from .views import camera_list, camera_feed, home, start_recording, recording_in_progress
+from .views import camera_list, camera_feed, home, start_recording, recording_in_progress, manifest,update_location
 from . import views
+
 
 urlpatterns = [
     path('cameras/', camera_list, name='camera_list'),
@@ -12,5 +13,7 @@ urlpatterns = [
     path('recording_in_progress/<int:camera_id>/', recording_in_progress, name='recording_in_progress'),
     path('register_and_set_default_camera/', views.register_and_set_default_camera, name='register_and_set_default_camera'),
     path('admin/camera_feed/<int:camera_id>/', camera_feed, name='admin_camera_feed'),
+    path('update_location/', update_location, name='update_location'),
     path('home/', home, name='home'),
+    path('manifest.json', manifest, name='manifest'),
 ]

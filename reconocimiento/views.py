@@ -16,6 +16,34 @@ import socket
 import queue
 from .models import Person, DetectionEvent, Camera
 from django.core.files.base import ContentFile
+import asyncio
+import websockets
+from geopy.distance import geodesic
+from cuentas.models import UserProfile
+from django.core.mail import send_mail
+from firebase_admin import messaging
+
+def manifest(request):
+    return JsonResponse({
+        "name": "Mi PWA en Django",
+        "short_name": "MiPWA",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#000000",
+        "icons": [
+            {
+                "src": "/static/icons/icon-192x192.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "/static/icons/icon-512x512.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    })
 
 
 def home(request):
@@ -145,14 +173,14 @@ def recognize_face(encoding, known_encodings):
 class VideoStream(threading.Thread):
     def __init__(self, camera):
         super().__init__()
-        self.camera = camera  # Guardamos el objeto Cámara
+        self.camera = camera  
         self.camera_ip = camera.ip_address
         self.url = f"http://{self.camera_ip}:8080/video"
         self.running = True
         self.lock = threading.Lock()
         self.frame = None
         self.frame_queue = queue.Queue(maxsize=5)
-        self.unknown_count = 0  # Contador para fotos de rostros desconocidos
+        self.unknown_count = 0  
         self.processing_thread = threading.Thread(target=self.process_frames, daemon=True)
         self.processing_thread.start()
 
@@ -167,8 +195,8 @@ class VideoStream(threading.Thread):
                 bytes_data += chunk
 
                 while True:
-                    a = bytes_data.find(b'\xff\xd8')  # Inicio JPEG
-                    b = bytes_data.find(b'\xff\xd9')  # Fin JPEG
+                    a = bytes_data.find(b'\xff\xd8')  
+                    b = bytes_data.find(b'\xff\xd9')  
                     if a != -1 and b != -1 and b > a:
                         jpg = bytes_data[a:b + 2]
                         bytes_data = bytes_data[b + 2:]
@@ -346,6 +374,7 @@ VIDEO_SAVE_PATH = "media/videos/"
 active_recordings = {}
 
 def record_video(camera_ip, duration=10, camera_id=None):
+    
     if not os.path.exists(VIDEO_SAVE_PATH):
         os.makedirs(VIDEO_SAVE_PATH)
 
@@ -364,7 +393,7 @@ def record_video(camera_ip, duration=10, camera_id=None):
         cap.release()
         return
 
-    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(video_filename, fourcc, 20.0, (width, height))
 
     if not out.isOpened():
@@ -390,7 +419,7 @@ def record_video(camera_ip, duration=10, camera_id=None):
 @csrf_protect
 @require_POST
 def start_recording(request, camera_id):
-    """Inicia la grabación de una cámara específica"""
+    """Inicia la grabación de una cámara específica y alerta a usuarios cercanos"""
     print(f"✅ Recibida solicitud de grabación para la cámara {camera_id}")
 
     camera = get_object_or_404(Camera, id=camera_id)
@@ -402,15 +431,120 @@ def start_recording(request, camera_id):
     print("🎥 Iniciando grabación...")
     recording_thread = threading.Thread(target=record_video, args=(camera.ip_address, 10, camera_id))
     recording_thread.start()
-
     active_recordings[camera_id] = recording_thread
 
-    print(f"🔄 Redirigiendo a: /recording_in_progress/{camera_id}/")
+    # Leer la geolocalización enviada desde el frontend
+    body = json.loads(request.body)
+    user_lat = body.get("latitude")
+    user_lon = body.get("longitude")
+    
+    # Si la cámara no tiene ubicación, se usa la geolocalización del usuario
+    if camera.latitude is None or camera.longitude is None:
+        location = {
+            "latitude": user_lat,
+            "longitude": user_lon
+        }
+    else:
+        location = {
+            "latitude": camera.latitude,
+            "longitude": camera.longitude
+        }
+
+    print(f"Usando ubicación: {location}")
+
+    # 🔥 Enviar notificación a usuarios cercanos
+    send_location_to_nearby_users(location)
+
     return JsonResponse({
         "message": "Grabación iniciada correctamente",
-        "redirect_url": f"/recording_in_progress/{camera_id}/"
+        "redirect_url": f"/recording_in_progress/{camera_id}/",
+        "location": location
     })
-
 def recording_in_progress(request, camera_id):
     camera = get_object_or_404(Camera, id=camera_id)
     return render(request, 'reconocimiento/recording_in_progress.html', {'camera': camera})
+
+
+def send_location_to_nearby_users(camera_location):
+    """Enviar alerta de grabación a usuarios cercanos (dentro de 1 km)"""
+    print(f"Ejecutando send_location_to_nearby_users con ubicación: {camera_location}")
+    
+    users = UserProfile.objects.all()
+    print(f"Usuarios totales en la base de datos: {len(users)}")
+    
+    nearby_users = []
+    for user in users:
+        if user.latitude and user.longitude:
+            user_location = (user.latitude, user.longitude)
+            distance = geodesic(user_location, (camera_location['latitude'], camera_location['longitude'])).km
+            
+            print(f"Usuario: {user.user.username} | Distancia: {distance} km")
+            
+            if distance <= 1:
+                nearby_users.append(user)
+    
+    print(f"Usuarios cercanos detectados: {len(nearby_users)}")
+    
+    for user in nearby_users:
+        print(f"Enviando notificación a {user.user.username}, Token: {user.fcm_token}")
+        send_push_notification(user, "Alerta de Seguridad", "Una cámara cercana ha comenzado a grabar.")
+
+def send_push_notification(user, title, message):
+    """Enviar notificación push usando Firebase Cloud Messaging (FCM)"""
+    if not user.fcm_token:
+        print(f"Error: El usuario {user.user.username} no tiene un token FCM registrado.")
+        return
+    
+    try:
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=message,
+            ),
+            token=user.fcm_token,
+        )
+        
+        response = messaging.send(message)
+        print(f"Notificación enviada a {user.user.username}: {response}")
+    except Exception as e:
+        print(f"Error al enviar notificación a {user.user.username}: {e}")
+
+def send_push_notification(user, title, message):
+    """Enviar notificación push usando Firebase Cloud Messaging (FCM)"""
+    if not user.fcm_token:
+        print(f"Error: El usuario {user.user.username} no tiene un token FCM registrado.")
+        return
+    
+    try:
+        message = messaging.Message(
+            notification=messaging.Notification(
+                title=title,
+                body=message,
+            ),
+            token=user.fcm_token,
+        )
+        
+        response = messaging.send(message)
+        print(f"Notificación enviada a {user.user.username}: {response}")
+    except Exception as e:
+        print(f"Error al enviar notificación a {user.user.username}: {e}")
+
+@csrf_exempt
+@login_required
+def update_location(request):
+    """Actualizar la ubicación del usuario en la base de datos en tiempo real"""
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            user_profile = request.user.userprofile  # Suponiendo que tienes un perfil de usuario
+
+            user_profile.latitude = data.get("latitude")
+            user_profile.longitude = data.get("longitude")
+            user_profile.save()
+
+            return JsonResponse({"message": "Ubicación actualizada correctamente"}, status=200)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=400)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
+

@@ -3,16 +3,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import UserProfile
 from reconocimiento.models import DetectionEvent
+from math import radians, cos, sin, sqrt, atan2
+
 
 @login_required
 def profile(request):
-    # Obtén el perfil del usuario (si no existe, se crea)
     user_profile, created = UserProfile.objects.get_or_create(user=request.user)
-
-    # Obtener la cámara asociada al perfil
     user_camera = user_profile.camera
-
-    # Obtener los eventos sospechosos recientes de la cámara asociada
     suspicious_events = DetectionEvent.objects.filter(camera=user_camera, person__isnull=True).order_by('-timestamp')[:5]
 
     context = {
@@ -44,3 +41,5 @@ def edit_profile(request):
         messages.success(request, "Perfil actualizado correctamente.")
 
     return redirect('profile')
+
+

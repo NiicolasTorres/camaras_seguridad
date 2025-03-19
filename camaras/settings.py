@@ -1,6 +1,10 @@
 
 from pathlib import Path
 import os
+import firebase_admin
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
+from firebase_admin import credentials, initialize_app
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -106,3 +110,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Obtener la ruta base del proyecto
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Ruta correcta para firebase_credentials.json
+cred_path = os.path.join(base_dir, 'firebase_credentials.json')
+
+# Verificar que el archivo existe antes de intentar inicializar
+if os.path.exists(cred_path):
+    # Inicializar la aplicación de Firebase
+    cred = credentials.Certificate(cred_path)
+    initialize_app(cred)
+else:
+    print(f"Error: El archivo {cred_path} no existe.")

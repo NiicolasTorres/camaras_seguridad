@@ -1,4 +1,4 @@
-{% extends 'base.html' %} 
+{% extends 'base.html' %}
 
 {% block title %}Perfil - Seguridad{% endblock %}
 
@@ -53,6 +53,12 @@
                 <div class="mb-3">
                     <label class="form-label">Dirección</label>
                     <input type="text" class="form-control" name="address" value="{{ user.userprofile.address }}">
+                </div>
+
+                <!-- Campo de email obligatorio -->
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" value="{{ user.email }}" required>
                 </div>
 
                 <h5 class="mt-4">Contacto de Emergencia</h5>

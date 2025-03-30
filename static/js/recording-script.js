@@ -1,4 +1,4 @@
-// Obtener CSRF Token desde las cookies
+
 function getCSRFToken() {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -14,70 +14,56 @@ function getCSRFToken() {
     return cookieValue;
 }
 
+// Función para verificar y procesar la respuesta del servidor
+async function handleResponse(response) {
+    if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error en la respuesta del servidor:", errorText);
+        return null;
+    }
+    try {
+        const data = await response.json();
+        console.log("Respuesta recibida:", data);
+        return data;
+    } catch (error) {
+        console.error("Error parseando JSON:", error);
+        return null;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    document.querySelectorAll('.start-recording').forEach(button => {
-        button.addEventListener('click', async function(event) {
-            event.preventDefault();
+    let watchId;
 
-            const cameraId = button.getAttribute('data-camera-id');
-            const url = button.getAttribute('data-url');
+    function stopTrackingLocation() {
+        if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+            console.log("Seguimiento detenido antes de grabar.");
+        }
+    }
 
-            console.log(`🎬 Iniciando grabación para cámara ${cameraId} en ${url}`);
-
-            const csrfToken = getCSRFToken();
-            console.log(`🛡 CSRF Token: ${csrfToken}`);
-
-            // Obtener geolocalización
-            function getGeolocation() {
-                return new Promise((resolve, reject) => {
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(resolve, reject, {timeout: 10000});
-                    } else {
-                        reject('Geolocalización no soportada en este navegador.');
-                    }
-                });
-            }
-
-            try {
-                const position = await getGeolocation();
-                const latitude = position.coords.latitude;
-                const longitude = position.coords.longitude;
-                console.log(`🌍 Geolocalización obtenida: Latitud ${latitude}, Longitud ${longitude}`);
-
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({
-                        cameraId: cameraId,
-                        latitude: latitude,
-                        longitude: longitude
-                    })
-                });
-
-                const data = await response.json();
-
-                console.log("📩 Respuesta del servidor:", data);
-
-                if (response.ok) {
-                    console.log(`✅ Redirigiendo a: ${data.redirect_url}`);
-                    window.location.href = data.redirect_url; 
-                } else {
-                    console.error(`⚠ Error: ${data.error}`);
-                    alert(data.error || 'Hubo un error al iniciar la grabación');
+    function trackUserLocation() {
+        if (navigator.geolocation) {
+            watchId = navigator.geolocation.watchPosition(
+                position => {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    console.log("Nueva ubicación: " + latitude + ", " + longitude);
+                    sendLocation(latitude, longitude);
+                },
+                error => {
+                    console.error("Error al obtener geolocalización:", error);
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 5000
                 }
-            } catch (error) {
-                console.error('❌ Error en la petición:', error);
-                alert('Hubo un error al intentar grabar o al obtener la geolocalización.');
-            }
-        });
-    });
-});
+            );
+        } else {
+            console.error("Geolocalización no soportada en este navegador.");
+        }
+    }
 
-document.addEventListener('DOMContentLoaded', function() {
-    // URL del servidor para actualizar la ubicación
     const updateLocationUrl = "/update_location/";
 
     function sendLocation(latitude, longitude) {
@@ -91,38 +77,93 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(response => response.json())
         .then(data => {
-            console.log("📍 Ubicación actualizada en el servidor:", data);
+            console.log("Ubicación actualizada en el servidor:", data);
         })
         .catch(error => {
-            console.error("❌ Error al enviar la ubicación:", error);
+            console.error("Error al enviar la ubicación:", error);
         });
     }
 
-    function trackUserLocation() {
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(
-                position => {
+    document.querySelectorAll('.start-recording').forEach(button => {
+        button.addEventListener('click', async function(event) {
+            event.preventDefault();
+            const cameraId = button.getAttribute('data-camera-id');
+            const url = button.getAttribute('data-url');
+            console.log("Iniciando grabación para cámara " + cameraId + " en " + url);
+            const csrfToken = getCSRFToken();
+            console.log("CSRF Token: " + csrfToken);
+            stopTrackingLocation();
+            setTimeout(async () => {
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        if (navigator.geolocation) {
+                            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000 });
+                        } else {
+                            reject('Geolocalización no soportada en este navegador.');
+                        }
+                    });
                     const latitude = position.coords.latitude;
                     const longitude = position.coords.longitude;
-                    console.log(`🌍 Nueva ubicación: ${latitude}, ${longitude}`);
-
-                    // Enviar ubicación cada 10 segundos
-                    sendLocation(latitude, longitude);
-                },
-                error => {
-                    console.error("⚠ Error al obtener geolocalización:", error);
-                },
-                {
-                    enableHighAccuracy: true, // Usa GPS si es posible
-                    timeout: 20000,           // Espera máximo 10 segundos
-                    maximumAge: 5000          // Usa ubicación reciente si está disponible
+                    console.log("Geolocalización obtenida: Latitud " + latitude + ", Longitud " + longitude);
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({
+                            cameraId: cameraId,
+                            latitude: latitude,
+                            longitude: longitude
+                        })
+                    });
+                    
+                    // Utilizamos la función handleResponse para procesar la respuesta
+                    const data = await handleResponse(response);
+                    if (data && response.ok) {
+                        console.log("Redirigiendo a: " + data.redirect_url);
+                        window.location.href = data.redirect_url; 
+                    } else {
+                        console.error("Error en la respuesta:", data ? data.error : 'Respuesta inválida');
+                        alert(data && data.error ? data.error : 'Hubo un error al iniciar la grabación');
+                    }
+                    
+                } catch (error) {
+                    console.error('Error en la petición:', error);
+                    alert('Hubo un error al intentar grabar o al obtener la geolocalización.');
                 }
-            );
-        } else {
-            console.error("🚫 Geolocalización no soportada en este navegador.");
-        }
-    }
+            }, 500);
+        });
+    });
 
-    // Iniciar la actualización de ubicación
     trackUserLocation();
 });
+
+async function verificarSuscripcion() {
+    const registration = await navigator.serviceWorker.ready;
+    const subscription = await registration.pushManager.getSubscription();
+  
+    if (subscription) {
+      console.log('Usuario suscrito:', subscription);
+      // Envía al backend para verificar la suscripción
+      fetch('/verificar-suscripcion/', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCSRFToken()
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.suscrito) {
+          console.log('La suscripción es válida.');
+        } else {
+          console.log('La suscripción no es válida en el backend.');
+        }
+      });
+    } else {
+      console.log('El usuario no está suscrito.');
+    }
+}

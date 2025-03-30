@@ -21,7 +21,11 @@ import websockets
 from geopy.distance import geodesic
 from cuentas.models import UserProfile
 from django.core.mail import send_mail
-from firebase_admin import messaging
+from pywebpush import webpush, WebPushException
+from django.conf import settings
+from py_vapid import Vapid
+from cryptography.hazmat.primitives import serialization
+from cuentas.utils import generate_or_load_vapid_keys
 
 def manifest(request):
     return JsonResponse({
@@ -369,165 +373,129 @@ def register_and_set_default_camera(request):
         "camera_id": camera.id
     })
 
+# Cargar claves VAPID
+private_key_pem, public_key = generate_or_load_vapid_keys()
+
 # Grabar video
 VIDEO_SAVE_PATH = "media/videos/"
 active_recordings = {}
 
 def record_video(camera_ip, duration=10, camera_id=None):
-    
     if not os.path.exists(VIDEO_SAVE_PATH):
         os.makedirs(VIDEO_SAVE_PATH)
-
+    
     video_filename = os.path.join(VIDEO_SAVE_PATH, f"recording_{camera_id}_{int(time.time())}.mp4")
     cap = cv2.VideoCapture(f"http://{camera_ip}:8080/video")
-
+    
     if not cap.isOpened():
         print(f"Error: No se pudo abrir la cámara {camera_ip}")
         return
-
+    
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
+    
     if width == 0 or height == 0:
         print("Error: No se pudo obtener el tamaño del frame.")
         cap.release()
         return
-
+    
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(video_filename, fourcc, 20.0, (width, height))
-
+    
     if not out.isOpened():
         print("Error: No se pudo inicializar el VideoWriter.")
         cap.release()
         return
-
+    
     start_time = time.time()
-
     while time.time() - start_time < duration:
         ret, frame = cap.read()
         if not ret:
             print("Error: No se pudo leer el frame de la cámara.")
             break
         out.write(frame)
-
+    
     cap.release()
     out.release()
     print(f"Grabación guardada: {video_filename}")
-
     active_recordings.pop(camera_id, None)
 
 @csrf_protect
 @require_POST
 def start_recording(request, camera_id):
     """Inicia la grabación de una cámara específica y alerta a usuarios cercanos"""
-    print(f"✅ Recibida solicitud de grabación para la cámara {camera_id}")
-
     camera = get_object_or_404(Camera, id=camera_id)
-
+    
     if camera_id in active_recordings:
-        print("⚠ La cámara ya está grabando.")
         return JsonResponse({"error": "La cámara ya está grabando."}, status=400)
-
-    print("🎥 Iniciando grabación...")
+    
     recording_thread = threading.Thread(target=record_video, args=(camera.ip_address, 10, camera_id))
     recording_thread.start()
     active_recordings[camera_id] = recording_thread
-
-    # Leer la geolocalización enviada desde el frontend
-    body = json.loads(request.body)
+    
+    try:
+        body = json.loads(request.body.decode("utf-8"))  # Siempre decodificamos desde bytes
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "No se pudo decodificar el JSON"}, status=400)
+    
     user_lat = body.get("latitude")
     user_lon = body.get("longitude")
     
-    # Si la cámara no tiene ubicación, se usa la geolocalización del usuario
-    if camera.latitude is None or camera.longitude is None:
-        location = {
-            "latitude": user_lat,
-            "longitude": user_lon
-        }
-    else:
-        location = {
-            "latitude": camera.latitude,
-            "longitude": camera.longitude
-        }
-
-    print(f"Usando ubicación: {location}")
-
-    # 🔥 Enviar notificación a usuarios cercanos
-    send_location_to_nearby_users(location)
-
+    location = {
+        "latitude": camera.latitude or user_lat,
+        "longitude": camera.longitude or user_lon
+    }
+    
+    nearby_user_subscriptions = send_location_to_nearby_users(location)
+    
+    notification_data = json.dumps({
+        "message": "Nueva grabación iniciada",
+        "location": location
+    })
+    
+    for subscription_info in nearby_user_subscriptions:
+        send_web_push(subscription_info, notification_data, private_key_pem, "mailto:federico.-torres@hotmail.com")
+    
     return JsonResponse({
         "message": "Grabación iniciada correctamente",
         "redirect_url": f"/recording_in_progress/{camera_id}/",
         "location": location
     })
+
 def recording_in_progress(request, camera_id):
     camera = get_object_or_404(Camera, id=camera_id)
     return render(request, 'reconocimiento/recording_in_progress.html', {'camera': camera})
 
-
 def send_location_to_nearby_users(camera_location):
-    """Enviar alerta de grabación a usuarios cercanos (dentro de 1 km)"""
-    print(f"Ejecutando send_location_to_nearby_users con ubicación: {camera_location}")
-    
-    users = UserProfile.objects.all()
-    print(f"Usuarios totales en la base de datos: {len(users)}")
-    
-    nearby_users = []
-    for user in users:
-        if user.latitude and user.longitude:
-            user_location = (user.latitude, user.longitude)
-            distance = geodesic(user_location, (camera_location['latitude'], camera_location['longitude'])).km
-            
-            print(f"Usuario: {user.user.username} | Distancia: {distance} km")
-            
-            if distance <= 1:
-                nearby_users.append(user)
-    
-    print(f"Usuarios cercanos detectados: {len(nearby_users)}")
+    """Enviar notificación web push a usuarios dentro de 1 km"""
+    nearby_users = [user for user in UserProfile.objects.all()
+                    if user.latitude and user.longitude and user.subscription_info and
+                    geodesic((user.latitude, user.longitude), (camera_location['latitude'], camera_location['longitude'])).km <= 1]
     
     for user in nearby_users:
-        print(f"Enviando notificación a {user.user.username}, Token: {user.fcm_token}")
-        send_push_notification(user, "Alerta de Seguridad", "Una cámara cercana ha comenzado a grabar.")
-
-def send_push_notification(user, title, message):
-    """Enviar notificación push usando Firebase Cloud Messaging (FCM)"""
-    if not user.fcm_token:
-        print(f"Error: El usuario {user.user.username} no tiene un token FCM registrado.")
-        return
+        send_web_push( user.subscription_info, json.dumps({"message": "Una cámara cercana ha comenzado a grabar."}), private_key_pem, user.email )
     
-    try:
-        message = messaging.Message(
-            notification=messaging.Notification(
-                title=title,
-                body=message,
-            ),
-            token=user.fcm_token,
-        )
-        
-        response = messaging.send(message)
-        print(f"Notificación enviada a {user.user.username}: {response}")
-    except Exception as e:
-        print(f"Error al enviar notificación a {user.user.username}: {e}")
+    return [user.subscription_info for user in nearby_users]
 
-def send_push_notification(user, title, message):
-    """Enviar notificación push usando Firebase Cloud Messaging (FCM)"""
-    if not user.fcm_token:
-        print(f"Error: El usuario {user.user.username} no tiene un token FCM registrado.")
-        return
-    
+def send_web_push(subscription_info, data, vapid_private_key, email):
     try:
-        message = messaging.Message(
-            notification=messaging.Notification(
-                title=title,
-                body=message,
-            ),
-            token=user.fcm_token,
-        )
+        if isinstance(subscription_info, str):
+            subscription_info = json.loads(subscription_info)
         
-        response = messaging.send(message)
-        print(f"Notificación enviada a {user.user.username}: {response}")
-    except Exception as e:
-        print(f"Error al enviar notificación a {user.user.username}: {e}")
+        if not email.startswith("mailto:"):
+            email = "mailto:" + email
+        
+        webpush(
+            subscription_info=subscription_info, 
+            data=data,
+            vapid_private_key=vapid_private_key,
+            vapid_claims={"sub": email}
+        )
+    except WebPushException as ex:
+        print(f"Error en el envío del push: {repr(ex)}")
+        if ex.response and ex.response.json():
+            print("Detalles:", ex.response.json())
+
 
 @csrf_exempt
 @login_required
@@ -536,15 +504,11 @@ def update_location(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
-            user_profile = request.user.userprofile  # Suponiendo que tienes un perfil de usuario
-
+            user_profile = request.user.userprofile  
             user_profile.latitude = data.get("latitude")
             user_profile.longitude = data.get("longitude")
             user_profile.save()
-
             return JsonResponse({"message": "Ubicación actualizada correctamente"}, status=200)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=400)
-
     return JsonResponse({"error": "Método no permitido"}, status=405)
-

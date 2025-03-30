@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import os
 import firebase_admin
@@ -114,13 +113,30 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Obtener la ruta base del proyecto
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Ruta correcta para firebase_credentials.json
-cred_path = os.path.join(base_dir, 'firebase_credentials.json')
 
-# Verificar que el archivo existe antes de intentar inicializar
-if os.path.exists(cred_path):
-    # Inicializar la aplicación de Firebase
-    cred = credentials.Certificate(cred_path)
-    initialize_app(cred)
-else:
-    print(f"Error: El archivo {cred_path} no existe.")
+#Email de admins
+
+ADMINS = [
+    ('Federico Torres', 'federico.-torres@hotmail.com'),
+]
+
+#email
+
+# Configuración para enviar correos electrónicos en Django (ejemplo usando Gmail)
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # O el host de tu servidor SMTP
+EMAIL_PORT = 587  # Puerto para TLS
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'thesiriuscat1@gmail.com'  # Tu correo electrónico de Gmail
+EMAIL_HOST_PASSWORD = '987/987_asd'  # La contraseña de tu cuenta de correo (o aplicación)
+
+# Vapid
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+VAPID_PRIVATE_KEY = os.path.join(BASE_DIR, 'vapid_private.pem')
+VAPID_PUBLIC_KEY = os.path.join(BASE_DIR, 'vapid_public.pem')
+VAPID_CLAIMS = {
+    "sub": "mailto:federico.-torres@hotmail.com"  
+}
+print(os.path.exists(VAPID_PRIVATE_KEY), os.path.exists(VAPID_PUBLIC_KEY))

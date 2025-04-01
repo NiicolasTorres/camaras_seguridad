@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateLocationUrl = "/update_location/";
 
     function sendLocation(latitude, longitude) {
+        console.log("Enviando ubicación:", latitude, longitude);  // <-- Agregado para debug
         fetch(updateLocationUrl, {
             method: 'POST',
             headers: {
@@ -83,6 +84,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error("Error al enviar la ubicación:", error);
         });
     }
+    
 
     document.querySelectorAll('.start-recording').forEach(button => {
         button.addEventListener('click', async function(event) {
@@ -123,7 +125,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const data = await handleResponse(response);
                     if (data && response.ok) {
                         console.log("Redirigiendo a: " + data.redirect_url);
-                        window.location.href = data.redirect_url; 
+                        window.location.href = `/ubicacion/?latitude=${camera.latitude}&longitude=${camera.longitude}`;
+
+
                     } else {
                         console.error("Error en la respuesta:", data ? data.error : 'Respuesta inválida');
                         alert(data && data.error ? data.error : 'Hubo un error al iniciar la grabación');
@@ -166,4 +170,17 @@ async function verificarSuscripcion() {
     } else {
       console.log('El usuario no está suscrito.');
     }
+}
+
+function showLocationOnMap(latitude, longitude) {
+    const map = new google.maps.Map(document.getElementById('map'), {
+        center: { lat: latitude, lng: longitude },
+        zoom: 15
+    });
+
+    new google.maps.marker.AdvancedMarkerElement({
+        position: { lat: latitude, lng: longitude },
+        map: map,
+        title: "Tu ubicación"
+    });
 }

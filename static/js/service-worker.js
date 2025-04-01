@@ -51,19 +51,19 @@ self.addEventListener("activate", (event) => {
     );
 });
 
-self.addEventListener("push", function(event) {
-    const data = event.data ? event.data.json() : {};
-    const title = data.title || "Nueva notificación";
-    const options = {
-        body: data.message || "Tienes una nueva notificación.",
-        icon: "/static/icons/icon.png"
-    };
-    event.waitUntil(self.registration.showNotification(title, options));
-});
-
-self.addEventListener("notificationclick", function(event) {
-    event.notification.close();
-    if (event.notification.data && event.notification.data.url) {
-        event.waitUntil(clients.openWindow(event.notification.data.url));
+self.addEventListener('push', function(event) {
+    if (!event.data) {
+      console.error("📛 No se recibieron datos en el evento push.");
+      return;
     }
-});
+  
+    const notificationData = event.data.json();
+  
+    event.waitUntil(
+      self.registration.showNotification(notificationData.title || "Notificación", {
+        body: notificationData.body || "Tienes una nueva alerta.",
+        icon: "/static/icons/notification-icon.png",
+        badge: "/static/icons/icon.png"
+      })
+    );
+  });

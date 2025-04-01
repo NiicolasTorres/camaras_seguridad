@@ -11,7 +11,7 @@ urlpatterns = [
     path('profile/', views.profile, name='profile'),
     path('perfil/editar/', edit_profile, name='edit_profile'),
     path('vapid_public_key/', views.vapid_public_key, name='vapid_public_key'),
-    path('save_push_subscription/', save_subscription, name='save_push_subscription'),
+    path('save_subscription/', save_subscription, name='save_subscription'),
 
 
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    camera = models.ForeignKey(Camera, on_delete=models.CASCADE, null=True, blank=True)
+    cameras = models.ManyToManyField(Camera, blank=True) 
     full_name = models.CharField(max_length=150)
     dni = models.CharField(max_length=20, blank=True, null=True)  # Opcional
     phone_number = models.CharField(max_length=15, blank=True, null=True)

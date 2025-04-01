@@ -1,0 +1,32 @@
+
+{% block content %}
+    <h1>Ubicación en el Mapa</h1>
+    <div id="map" style="height: 500px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function initMap() {
+        var lat = parseFloat("{{ latitude|default:'0' }}".replace(",", "."));
+        var lng = parseFloat("{{ longitude|default:'0' }}".replace(",", "."));
+        var location = { lat: lat, lng: lng };
+
+        var map = new google.maps.Map(document.getElementById('map'), {
+            center: location,
+            zoom: 15
+        });
+
+        new google.maps.Marker({
+            position: location,
+            map: map,
+            title: 'Tu ubicación'
+        });
+    }
+</script>
+
+    <script async defer 
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCRAeQ4mjdncapRu5rjQmfLfRJmVbyHM1Q&callback=initMap">
+</script>
+
+    
+{% endblock %}  

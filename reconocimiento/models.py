@@ -4,15 +4,19 @@ from django.contrib.auth.models import User
 class Camera(models.Model):
     name = models.CharField(max_length=100)
     location = models.CharField(max_length=255)
-    latitude = models.FloatField(blank=True, null=True)  # Nuevo campo para latitud
-    longitude = models.FloatField(blank=True, null=True)  # Nuevo campo para longitud
-    mac_address = models.CharField(max_length=17, unique=True, blank=True, null=True)  # Dirección MAC
+    latitude = models.FloatField(blank=True, null=True)  
+    longitude = models.FloatField(blank=True, null=True)  
+    mac_address = models.CharField(max_length=17, unique=True, blank=True, null=True)  
     ip_address = models.GenericIPAddressField(blank=True, null=True)  
     active = models.BooleanField(default=True) 
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return self.name
+    
+    class Meta:
+        verbose_name = "Cámara"
+        verbose_name_plural = "Cámaras"
 
 
 class Person(models.Model):
@@ -23,6 +27,10 @@ class Person(models.Model):
 
     def __str__(self):
         return self.name if self.name else "Desconocido"
+    
+    class Meta:
+        verbose_name = "Persona"
+        verbose_name_plural = "Personas"
 
     def user_profile(self):
         try:
@@ -37,13 +45,15 @@ class DetectionEvent(models.Model):
     confidence = models.FloatField(blank=True, null=True)
     image = models.ImageField(upload_to='detections/', blank=True, null=True)
     video = models.FileField(upload_to='videos/', blank=True, null=True)
-    notified = models.BooleanField(default=False)  # Marca si la notificación ha sido enviada
+    notified = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Detección en {self.camera} - {self.timestamp}"
     
     def send_notification(self):
         """Enviar una notificación a los usuarios cercanos cuando se detecta algo"""
+
+
         from geopy.distance import geodesic
         from django.core.mail import send_mail
 
@@ -76,6 +86,10 @@ class DetectionEvent(models.Model):
         # Marcar el evento como notificado
         self.notified = True
         self.save()
+
+    class Meta:
+        verbose_name = "Evento de detección"
+        verbose_name_plural = "Eventos de detección"
 
 class AccessLog(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

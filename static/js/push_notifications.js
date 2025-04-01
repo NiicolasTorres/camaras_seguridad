@@ -5,40 +5,44 @@ async function subscribeUserToPush() {
   }
 
   try {
+    // Registrar el service worker
     const registration = await navigator.serviceWorker.register('/static/js/service-worker.js');
     let subscription = await registration.pushManager.getSubscription();
 
-    if (!subscription) {
-      // Obtener la clave VAPID correctamente
-      const response = await fetch('/vapid_public_key/');
-      if (!response.ok) {
-        throw new Error(`⛔ Error al obtener la clave VAPID: ${response.status}`);
-      }
-      const data = await response.json();
-
-      if (!data.publicKey) {
-        throw new Error("⛔ La clave pública VAPID es undefined.");
-      }
-
-      const vapidPublicKey = data.publicKey;
-      const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-
-      // Suscribir al usuario
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: convertedVapidKey
-      });
-
-      console.log("✅ Suscripción creada con éxito.");
-    } else {
-      console.log("✅ El usuario ya está suscrito.");
+    // Si hay una suscripción previa, la eliminamos antes de crear una nueva
+    if (subscription) {
+      console.log("🔄 Eliminando suscripción anterior...");
+      await subscription.unsubscribe();
     }
+
+    // Obtener la clave pública VAPID del servidor
+    const response = await fetch('/vapid_public_key/');
+    if (!response.ok) {
+      throw new Error(`⛔ Error al obtener la clave VAPID: ${response.status}`);
+    }
+    const data = await response.json();
+
+    if (!data.publicKey) {
+      throw new Error("⛔ La clave pública VAPID es undefined.");
+    }
+
+    const vapidPublicKey = data.publicKey;
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+    // Suscribir al usuario nuevamente con la clave VAPID
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    });
+
+    console.log("✅ Suscripción creada con éxito.");
 
     // Convertir la suscripción a JSON para enviarla al servidor
     const subscriptionJson = subscription.toJSON();
     console.log("Suscripción (JSON):", subscriptionJson);
-    
-    const saveResponse = await fetch('/save_push_subscription/', {
+
+    // Enviar la suscripción al servidor para guardarla
+    const saveResponse = await fetch('/save_subscription/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -57,6 +61,7 @@ async function subscribeUserToPush() {
   }
 }
 
+// Función para convertir una clave VAPID en Base64 a un ArrayBuffer
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -69,7 +74,6 @@ function urlBase64ToUint8Array(base64String) {
   }
   return outputArray;
 }
-
 
 // Obtener token CSRF en Django
 function getCSRFToken() {

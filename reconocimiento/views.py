@@ -26,11 +26,13 @@ from django.conf import settings
 from py_vapid import Vapid
 from cryptography.hazmat.primitives import serialization
 from cuentas.utils import generate_or_load_vapid_keys
+from geopy.geocoders import Nominatim
+from django.http import FileResponse, Http404
 
 def manifest(request):
     return JsonResponse({
-        "name": "Mi PWA en Django",
-        "short_name": "MiPWA",
+        "name": "Seguridad con SilentEye",
+        "short_name": "SilentEye",
         "start_url": "/",
         "display": "standalone",
         "background_color": "#ffffff",
@@ -50,9 +52,21 @@ def manifest(request):
     })
 
 
-def home(request):
-    cameras = Camera.objects.all()  
+def home(request): 
+    if request.user.is_authenticated:
+        user_profile = UserProfile.objects.filter(user=request.user).first()  
+        cameras = user_profile.cameras.all() if user_profile else []  
+
+        for camera in cameras:
+            if camera.latitude is None or camera.longitude is None:
+                camera.latitude = 0  
+                camera.longitude = 0  
+
+    else:
+        cameras = []
+
     return render(request, 'home.html', {'cameras': cameras})
+
 
 def get_local_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -133,13 +147,15 @@ def detect_cameras(request):
 def set_default_camera(request, camera_id):
     try:
         camera = Camera.objects.get(id=camera_id)
-        camera.is_default = True
-        camera.save()
+        # Aquí agregas la cámara al perfil del usuario (si no lo está ya)
+        user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+        user_profile.cameras.add(camera)
         return JsonResponse({"message": f"Cámara {camera.name} marcada como predeterminada."})
     except Camera.DoesNotExist:
         return JsonResponse({"error": "Cámara no encontrada"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
 
 def camera_feed(request, camera_id):
     camera = get_object_or_404(Camera, id=camera_id)
@@ -232,13 +248,10 @@ class VideoStream(threading.Thread):
         while self.running:
             try:
                 frame = self.frame_queue.get(timeout=0.1)
-                # Crear una copia para realizar las anotaciones sin afectar el frame original
                 annotated_frame = frame.copy()
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 face_locations = face_recognition.face_locations(rgb_frame, model="hog")
                 face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
-
-                # Cargar rostros registrados
                 persons = list(Person.objects.all())
                 known_encodings = []
                 persons_with_encodings = []
@@ -248,22 +261,19 @@ class VideoStream(threading.Thread):
                         persons_with_encodings.append(p)
 
                 for (top, right, bottom, left), encoding in zip(face_locations, face_encodings):
-                    # Obtener imagen del rostro detectado
                     face_image = save_face_image(frame, top, right, bottom, left)
-                    
-                    # Comparar con la base de datos
+
                     matched = recognize_face(encoding, known_encodings)
                     if any(matched):
                         idx = matched.index(True)
                         matched_person = persons_with_encodings[idx]
                         print(f"🔴 Alerta: Se detectó a {matched_person.name}")
-                        # Crear evento de detección para rostro reconocido
+                        # Guardar imagen con el nombre de la persona
                         DetectionEvent.objects.create(
                             person=matched_person,
                             camera=self.camera,
-                            image=ContentFile(face_image, name=f"{matched_person.id}_{int(time.time())}.jpg")
+                            image=ContentFile(face_image, name=f"{matched_person.name}_{int(time.time())}.jpg")
                         )
-                        # Dibujar rectángulo verde y etiqueta con el nombre
                         cv2.rectangle(annotated_frame, (left, top), (right, bottom), (0, 255, 0), 2)
                         cv2.putText(annotated_frame, matched_person.name, (left, top - 10),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
@@ -274,7 +284,6 @@ class VideoStream(threading.Thread):
                             print("⚠ Rostro no reconocido. Guardando foto y codificación...")
                             unknown_person = Person.objects.create(name=label)
                             unknown_person.photo.save(f"{unknown_person.id}.jpg", ContentFile(face_image))
-                            # Guardar la codificación en el campo encodings (convertida a lista)
                             unknown_person.encodings = encoding.tolist()
                             unknown_person.save()
                             self.unknown_count += 1
@@ -373,6 +382,28 @@ def register_and_set_default_camera(request):
         "camera_id": camera.id
     })
 
+@csrf_exempt  # Si no usas autenticación, permite solicitudes sin verificación CSRF
+@require_POST
+def edit_camera_name(request, camera_id):
+    """Edita el nombre de una cámara."""
+    try:
+        camera = get_object_or_404(Camera, id=camera_id)
+        data = json.loads(request.body)
+        new_name = data.get("name")
+
+        if not new_name:
+            return JsonResponse({"error": "El nombre no puede estar vacío."}, status=400)
+
+        camera.name = new_name
+        camera.save()
+
+        return JsonResponse({"message": "Nombre de cámara actualizado correctamente.", "new_name": camera.name})
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Formato JSON inválido."}, status=400)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
 # Cargar claves VAPID
 private_key_pem, public_key = generate_or_load_vapid_keys()
 
@@ -380,7 +411,7 @@ private_key_pem, public_key = generate_or_load_vapid_keys()
 VIDEO_SAVE_PATH = "media/videos/"
 active_recordings = {}
 
-def record_video(camera_ip, duration=10, camera_id=None):
+def record_video(camera_ip, duration=300, camera_id=None):
     if not os.path.exists(VIDEO_SAVE_PATH):
         os.makedirs(VIDEO_SAVE_PATH)
     
@@ -420,37 +451,53 @@ def record_video(camera_ip, duration=10, camera_id=None):
     print(f"Grabación guardada: {video_filename}")
     active_recordings.pop(camera_id, None)
 
+
 @csrf_protect
 @require_POST
 def start_recording(request, camera_id):
-    """Inicia la grabación de una cámara específica y alerta a usuarios cercanos"""
+    """Inicia la grabación de una cámara y alerta a usuarios cercanos"""
     camera = get_object_or_404(Camera, id=camera_id)
     
     if camera_id in active_recordings:
         return JsonResponse({"error": "La cámara ya está grabando."}, status=400)
     
-    recording_thread = threading.Thread(target=record_video, args=(camera.ip_address, 10, camera_id))
+    # Iniciar grabación en segundo plano
+    recording_thread = threading.Thread(target=record_video, args=(camera.ip_address, 300, camera_id))
     recording_thread.start()
     active_recordings[camera_id] = recording_thread
-    
+
     try:
-        body = json.loads(request.body.decode("utf-8"))  # Siempre decodificamos desde bytes
+        body = json.loads(request.body.decode("utf-8"))
     except json.JSONDecodeError:
         return JsonResponse({"error": "No se pudo decodificar el JSON"}, status=400)
     
+    # 🔥 1️⃣ Obtener ubicación del usuario solicitante
+    user_profile = request.user.userprofile
     user_lat = body.get("latitude")
     user_lon = body.get("longitude")
-    
+
+    if not user_lat or not user_lon:
+        return JsonResponse({"error": "Ubicación no recibida"}, status=400)
+
+    print(f"📍 Ubicación del usuario: {user_lat}, {user_lon}")
+
+    # 🔥 2️⃣ Determinar ubicación de la cámara
     location = {
         "latitude": camera.latitude or user_lat,
         "longitude": camera.longitude or user_lon
     }
-    
+
+    print(f"📷 Ubicación de la cámara: {location}")
+
+    # 🔥 3️⃣ Buscar usuarios cercanos
     nearby_user_subscriptions = send_location_to_nearby_users(location)
     
+    # 🔥 4️⃣ Enviar notificación web push
     notification_data = json.dumps({
-        "message": "Nueva grabación iniciada",
-        "location": location
+        "title": "🚨 Alerta de Grabación",
+        "message": f"La cámara {camera.name} ha comenzado a grabar.",
+        "latitude": location["latitude"],
+        "longitude": location["longitude"]
     })
     
     for subscription_info in nearby_user_subscriptions:
@@ -462,53 +509,135 @@ def start_recording(request, camera_id):
         "location": location
     })
 
+def download_media(request, event_id, file_type):
+    event = get_object_or_404(DetectionEvent, id=event_id)
+
+    if file_type == 'image' and event.image:
+        file_path = event.image.path
+    elif file_type == 'video' and event.video:
+        file_path = event.video.path
+    else:
+        raise Http404("Archivo no encontrado")
+
+    if os.path.exists(file_path):
+        return FileResponse(open(file_path, 'rb'), as_attachment=True)
+    else:
+        raise Http404("Archivo no encontrado")
+
 def recording_in_progress(request, camera_id):
     camera = get_object_or_404(Camera, id=camera_id)
+    recording_duration = 300  # Por ejemplo, 5 minutos en segundos
+
+    context = {
+        "camera": camera,
+        "minutes": recording_duration // 60,
+        "seconds": recording_duration % 60,
+    }
     return render(request, 'reconocimiento/recording_in_progress.html', {'camera': camera})
 
-def send_location_to_nearby_users(camera_location):
-    """Enviar notificación web push a usuarios dentro de 1 km"""
-    nearby_users = [user for user in UserProfile.objects.all()
-                    if user.latitude and user.longitude and user.subscription_info and
-                    geodesic((user.latitude, user.longitude), (camera_location['latitude'], camera_location['longitude'])).km <= 1]
+def send_location_to_nearby_users(camera_location): 
+    """Enviar notificación web push a usuarios dentro de 2 km"""
     
-    for user in nearby_users:
-        send_web_push( user.subscription_info, json.dumps({"message": "Una cámara cercana ha comenzado a grabar."}), private_key_pem, user.email )
+    print(f"🔎 Ejecutando send_location_to_nearby_users con ubicación: {camera_location}")
     
-    return [user.subscription_info for user in nearby_users]
+    nearby_users = []
+    nearby_user_subscriptions = []
+    
+    for user in UserProfile.objects.all():
+        if not user.latitude or not user.longitude:
+            print(f"❌ {user.email} excluido por falta de coordenadas")
+            continue
+
+        if not user.subscription_info:
+            print(f"❌ {user.email} excluido por falta de `subscription_info`")
+            continue
+        
+        distance = geodesic(
+            (user.latitude, user.longitude), 
+            (camera_location['latitude'], camera_location['longitude'])
+        ).km
+        
+        print(f"🔍 {user.email} está a {distance:.2f} km")
+        
+        if distance <= 2:
+            print(f"✅ {user.email} dentro del rango")
+            nearby_users.append(user)
+            nearby_user_subscriptions.append(user.subscription_info)  # Guardar suscripción
+
+    print(f"Usuarios cercanos encontrados: {len(nearby_users)}")
+
+    return nearby_user_subscriptions
 
 def send_web_push(subscription_info, data, vapid_private_key, email):
     try:
         if isinstance(subscription_info, str):
             subscription_info = json.loads(subscription_info)
-        
+
         if not email.startswith("mailto:"):
             email = "mailto:" + email
-        
+
         webpush(
-            subscription_info=subscription_info, 
+            subscription_info=subscription_info,
             data=data,
             vapid_private_key=vapid_private_key,
             vapid_claims={"sub": email}
         )
     except WebPushException as ex:
-        print(f"Error en el envío del push: {repr(ex)}")
+        print(f"❌ Error en Web Push: {repr(ex)}")
         if ex.response and ex.response.json():
-            print("Detalles:", ex.response.json())
+            print("📋 Detalles del error:", ex.response.json())
 
 
 @csrf_exempt
 @login_required
 def update_location(request):
-    """Actualizar la ubicación del usuario en la base de datos en tiempo real"""
-    if request.method == "POST":
+    if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            user_profile = request.user.userprofile  
-            user_profile.latitude = data.get("latitude")
-            user_profile.longitude = data.get("longitude")
-            user_profile.save()
-            return JsonResponse({"message": "Ubicación actualizada correctamente"}, status=200)
+            latitude = data.get('latitude')
+            longitude = data.get('longitude')
+
+            if latitude and longitude:
+                camera = Camera.objects.filter(active=True).first()  # Suponiendo que tienes una cámara activa
+                if camera:
+                    camera.latitude = latitude
+                    camera.longitude = longitude
+                    camera.save()
+                    return JsonResponse({'message': 'Ubicación actualizada correctamente'})
+            
+            return JsonResponse({'error': 'Datos inválidos'}, status=400)
+        
         except Exception as e:
-            return JsonResponse({"error": str(e)}, status=400)
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+            return JsonResponse({'error': str(e)}, status=500)
+
+def get_lat_long(location):
+    geolocator = Nominatim(user_agent="myGeocoder")
+    location_obj = geolocator.geocode(location)
+    if location_obj:
+        return location_obj.latitude, location_obj.longitude
+    return None, None
+
+def show_map(request):
+    latitude = request.GET.get('latitude', '0').replace(",", ".")
+    longitude = request.GET.get('longitude', '0').replace(",", ".")
+
+    try:
+        latitude = float(latitude)
+        longitude = float(longitude)
+    except ValueError:
+        latitude, longitude = 0, 0
+
+    return render(request, 'reconocimiento/map.html', {'latitude': latitude, 'longitude': longitude})
+
+
+
+def get_nearby_users(user_location, users_queryset):
+    nearby_users = []
+    for user in users_queryset:
+        # Obtener la latitud y longitud desde el perfil del usuario
+        user_location_coords = (user.profile.latitude, user.profile.longitude)
+        distance = geodesic(user_location, user_location_coords).meters
+        if distance <= 5000:
+            nearby_users.append(user)
+    
+    return nearby_users

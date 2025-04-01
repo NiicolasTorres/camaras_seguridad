@@ -92,11 +92,13 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'es' 
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'America/Mexico_City'
+
 
 USE_I18N = True
+USE_L10N = True
 
 USE_TZ = True
 
@@ -132,11 +134,11 @@ EMAIL_HOST_PASSWORD = '987/987_asd'  # La contraseña de tu cuenta de correo (o 
 
 # Vapid
 
+
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 VAPID_PRIVATE_KEY = os.path.join(BASE_DIR, 'vapid_private.pem')
 VAPID_PUBLIC_KEY = os.path.join(BASE_DIR, 'vapid_public.pem')
 VAPID_CLAIMS = {
-    "sub": "mailto:federico.-torres@hotmail.com"  
+    "sub": "mailto:federico.-torres@hotmail.com"
 }
-print(os.path.exists(VAPID_PRIVATE_KEY), os.path.exists(VAPID_PUBLIC_KEY))

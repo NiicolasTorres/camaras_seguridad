@@ -1,6 +1,8 @@
 from django.contrib import admin
 from .models import Person, DetectionEvent, Camera
 from cuentas.models import UserProfile
+import csv
+from django.http import HttpResponse
 
 class DetectionEventInline(admin.TabularInline):
     model = DetectionEvent
@@ -15,24 +17,30 @@ class PersonAdmin(admin.ModelAdmin):
 admin.site.register(Person, PersonAdmin)
 
 class DetectionEventAdmin(admin.ModelAdmin):
-    list_display = ('camera', 'timestamp', 'confidence', 'notified', 'image', 'video')
-    search_fields = ('camera__name', 'timestamp')
-    list_filter = ('camera', 'notified')
-    readonly_fields = ('camera', 'timestamp', 'person', 'confidence', 'image', 'video')
+    actions = ['download_csv']
 
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        user_profile_id = request.GET.get("user_profile_id")
-        if user_profile_id:
-            try:
-                user_profile = UserProfile.objects.get(pk=user_profile_id)
-                camera_ids = user_profile.cameras.values_list('id', flat=True)
-                qs = qs.filter(camera__id__in=camera_ids)
-            except UserProfile.DoesNotExist:
-                qs = qs.none()
-        return qs
+    def download_csv(self, request, queryset):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="detections.csv"'
+        writer = csv.writer(response)
+        writer.writerow(["Fecha", "Hora", "Cámara", "Confianza", "Notificado"])
+
+        for event in queryset:
+            writer.writerow([
+                event.timestamp.date(),
+                event.timestamp.time(),
+                event.camera.name if event.camera else "Cámara no registrada",
+                event.confidence if event.confidence else "N/A",
+                "Sí" if event.notified else "No"
+            ])
+
+        return response
+
+    download_csv.short_description = "Descargar CSV de detecciones"
 
 admin.site.register(DetectionEvent, DetectionEventAdmin)
+
+
 
 class CameraAdmin(admin.ModelAdmin):
     list_display = ('name', 'location', 'ip_address', 'active', 'created_at')
@@ -43,7 +51,5 @@ class CameraAdmin(admin.ModelAdmin):
     list_display_links = ('location',) 
     verbose_name = "Cámara"
     verbose_name_plural = "Cámaras"
-
-    
 
 admin.site.register(Camera, CameraAdmin)

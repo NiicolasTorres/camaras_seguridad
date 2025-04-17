@@ -14,7 +14,6 @@ function getCSRFToken() {
     return cookieValue;
 }
 
-// Función para verificar y procesar la respuesta del servidor
 async function handleResponse(response) {
     if (!response.ok) {
         const errorText = await response.text();
@@ -67,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const updateLocationUrl = "/update_location/";
 
     function sendLocation(latitude, longitude) {
-        console.log("Enviando ubicación:", latitude, longitude);  // <-- Agregado para debug
+        console.log("Enviando ubicación:", latitude, longitude); 
         fetch(updateLocationUrl, {
             method: 'POST',
             headers: {
@@ -121,11 +120,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         })
                     });
                     
-                    // Utilizamos la función handleResponse para procesar la respuesta
                     const data = await handleResponse(response);
                     if (data && response.ok) {
                         console.log("Redirigiendo a: " + data.redirect_url);
-                        window.location.href = `/ubicacion/?latitude=${camera.latitude}&longitude=${camera.longitude}`;
+                        window.location.href = `/recording_in_progress/${cameraId}/`;
+
+
 
 
                     } else {
@@ -150,7 +150,6 @@ async function verificarSuscripcion() {
   
     if (subscription) {
       console.log('Usuario suscrito:', subscription);
-      // Envía al backend para verificar la suscripción
       fetch('/verificar-suscripcion/', {
         method: 'POST',
         body: JSON.stringify({ endpoint: subscription.endpoint }),

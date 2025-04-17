@@ -46,9 +46,14 @@ class DetectionEvent(models.Model):
     image = models.ImageField(upload_to='detections/', blank=True, null=True)
     video = models.FileField(upload_to='videos/', blank=True, null=True)
     notified = models.BooleanField(default=False)
+    actions = ['download_csv']
 
     def __str__(self):
         return f"Detección en {self.camera} - {self.timestamp}"
+    
+    def get_users(self):
+        from cuentas.models import UserProfile  # Importar aquí para evitar la importación circular
+        return UserProfile.objects.filter(cameras=self.camera)
     
     def send_notification(self):
         """Enviar una notificación a los usuarios cercanos cuando se detecta algo"""

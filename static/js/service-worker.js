@@ -5,10 +5,12 @@ const urlsToCache = [
     "/static/js/script.js",
     "/static/icons/icon-192x192.png",
     "/static/icons/icon-512x512.png",
+    "/static/icons/icon.png",
     "/static/screenshots/desktop.png",
     "/static/screenshots/mobile.png"
 ];
 
+// Instalación del Service Worker
 self.addEventListener("install", (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
@@ -17,6 +19,7 @@ self.addEventListener("install", (event) => {
     );
 });
 
+// Interceptar fetch
 self.addEventListener("fetch", (event) => {
     event.respondWith(
         caches.match(event.request).then((response) => {
@@ -25,17 +28,7 @@ self.addEventListener("fetch", (event) => {
     );
 });
 
-self.addEventListener("notificationclick", function(event) {
-    event.notification.close();
-    const data = event.notification.data;
-    if (data && data.latitude && data.longitude) {
-        const googleMapsUrl = `https://www.google.com/maps?q=${data.latitude},${data.longitude}`;
-        event.waitUntil(clients.openWindow(googleMapsUrl));
-    } else {
-        event.waitUntil(clients.openWindow('/'));
-    }
-});
-
+// Activación del Service Worker
 self.addEventListener("activate", (event) => {
     const cacheWhitelist = [CACHE_NAME];
     event.waitUntil(
@@ -51,19 +44,62 @@ self.addEventListener("activate", (event) => {
     );
 });
 
-self.addEventListener('push', function(event) {
-    if (!event.data) {
-      console.error("📛 No se recibieron datos en el evento push.");
-      return;
+// Notificación Push recibida
+self.addEventListener("push", function(event) {
+  console.log("🔔 Push recibido en el Service Worker:", event.data);
+
+  if (!event.data) {
+    console.warn("❌ No se recibió contenido en el Push.");
+    return;
+  }
+
+  const showNotification = async () => {
+    let data = {};
+
+    try {
+      data = JSON.parse(event.data.text());
+    } catch (e) {
+      console.warn("⚠️ El contenido no es JSON. Usando texto plano.");
+      data = { title: "📢 Notificación", body: event.data.text() };
     }
-  
-    const notificationData = event.data.json();
-  
-    event.waitUntil(
-      self.registration.showNotification(notificationData.title || "Notificación", {
-        body: notificationData.body || "Tienes una nueva alerta.",
-        icon: "/static/icons/notification-icon.png",
-        badge: "/static/icons/icon.png"
-      })
-    );
-  });
+
+    console.log("📨 Datos de la notificación:", data);
+
+    return self.registration.showNotification(data.title || "📢 Notificación", {
+      body: data.body || "Tenés una nueva alerta",
+      icon: "/static/icons/icon.png",
+      data: {
+        latitude: data.latitude,
+        longitude: data.longitude
+      }
+    });
+  };
+
+  event.waitUntil(showNotification());
+});
+
+
+
+// Click en la notificación
+self.addEventListener("notificationclick", function(event) {
+  event.notification.close();
+
+  const latitude = event.notification.data?.latitude;
+  const longitude = event.notification.data?.longitude;
+
+  // Redirigir a Google Maps con la ubicación
+  const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+
+  event.waitUntil(
+    clients.matchAll({ type: "window" }).then(function(clientList) {
+      for (const client of clientList) {
+        if (client.url === url && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
+});

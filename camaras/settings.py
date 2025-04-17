@@ -1,8 +1,7 @@
 from pathlib import Path
 import os
-import firebase_admin
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
-from firebase_admin import credentials, initialize_app
+
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -11,7 +10,7 @@ SECRET_KEY = 'django-insecure-ohkd*@hy#$&id&aah)l-zjteu^xtvb(s0u)_db=&3uo%@yc@9!
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['app.silenteye.com.mx', '75.119.148.43']
 
 LOGIN_REDIRECT_URL = '/profile/'
 
@@ -105,6 +104,8 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -129,8 +130,8 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'  # O el host de tu servidor SMTP
 EMAIL_PORT = 587  # Puerto para TLS
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'thesiriuscat1@gmail.com'  # Tu correo electrónico de Gmail
-EMAIL_HOST_PASSWORD = '987/987_asd'  # La contraseña de tu cuenta de correo (o aplicación)
+EMAIL_HOST_USER = ''  # Correo electrónico de Gmail
+EMAIL_HOST_PASSWORD = ''  # La contraseña del cuenta de correo 
 
 # Vapid
 

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import camera_list, camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,show_map
+from .views import camera_list, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
 from . import views
 
 
@@ -15,10 +15,12 @@ urlpatterns = [
     path('admin/camera_feed/<int:camera_id>/', camera_feed, name='admin_camera_feed'),
     path('update_location/', update_location, name='update_location'),
     path('home/', home, name='home'),
+    path('descargar_csv/', download_csv, name='descargar_csv'),
     path('manifest.json', manifest, name='manifest'),
     path('edit_camera_name/<int:camera_id>/', edit_camera_name, name='edit_camera_name'),
-    path('ubicacion/', views.show_map, name='map'),  # Nueva URL sin argumentos
+    path('ubicacion/', views.show_map, name='map'),  
     path('ubicacion/<str:latitude>/<str:longitude>/', views.show_map, name='map'),
-
+    path('service-worker.js', service_worker, name='service_worker'),
+    path('mapa_alerta/', views.redirect_to_map, name='mapa_alerta'),
 
 ]

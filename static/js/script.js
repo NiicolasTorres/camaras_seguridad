@@ -9,7 +9,7 @@ function startDetection() {
             return response.json();
         })
         .then(data => {
-            console.log('Respuesta de detect_cameras:', data);  // Depuración
+            console.log('Respuesta de detect_cameras:', data);
             document.getElementById('status-message').innerText = '¡Cámaras detectadas!';
             const cameraList = document.getElementById('camera-list');
             cameraList.innerHTML = '';
@@ -19,12 +19,10 @@ function startDetection() {
                 cameraItem.classList.add('col-md-6');
                 let buttonHTML = '';
                 if (camera.registered) {
-                    // Cámara ya registrada: se permite fijarla directamente
                     buttonHTML = `<button class="btn btn-success mt-2" onclick="setDefaultCamera(${camera.id})">
                                         Usar como predeterminada
                                   </button>`;
                 } else {
-                    // Cámara no registrada: se ofrece registrarla y usarla
                     buttonHTML = `<button class="btn btn-warning mt-2" onclick="registerAndSetDefaultCamera('${camera.mac}', '${camera.ip}', '${camera.name}', '${camera.location}')">
                                         Registrar y usar como predeterminada
                                   </button>`;
@@ -74,7 +72,6 @@ function registerAndSetDefaultCamera(mac, ip, name, location) {
     .then(response => response.json())
     .then(data => {
         alert(data.message);
-        // Redirige a la vista de transmisión usando el nuevo id
         window.location.href = `/camera_feed/${data.camera_id}/`;
     })
     .catch(error => console.error('Error al registrar y establecer cámara:', error));

@@ -5,17 +5,14 @@ async function subscribeUserToPush() {
   }
 
   try {
-    // Registrar el service worker
     const registration = await navigator.serviceWorker.register('/static/js/service-worker.js');
     let subscription = await registration.pushManager.getSubscription();
 
-    // Si hay una suscripción previa, la eliminamos antes de crear una nueva
     if (subscription) {
       console.log("🔄 Eliminando suscripción anterior...");
       await subscription.unsubscribe();
     }
 
-    // Obtener la clave pública VAPID del servidor
     const response = await fetch('/vapid_public_key/');
     if (!response.ok) {
       throw new Error(`⛔ Error al obtener la clave VAPID: ${response.status}`);
@@ -29,7 +26,6 @@ async function subscribeUserToPush() {
     const vapidPublicKey = data.publicKey;
     const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
 
-    // Suscribir al usuario nuevamente con la clave VAPID
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: convertedVapidKey
@@ -37,11 +33,9 @@ async function subscribeUserToPush() {
 
     console.log("✅ Suscripción creada con éxito.");
 
-    // Convertir la suscripción a JSON para enviarla al servidor
     const subscriptionJson = subscription.toJSON();
     console.log("Suscripción (JSON):", subscriptionJson);
 
-    // Enviar la suscripción al servidor para guardarla
     const saveResponse = await fetch('/save_subscription/', {
       method: 'POST',
       headers: {
@@ -61,7 +55,6 @@ async function subscribeUserToPush() {
   }
 }
 
-// Función para convertir una clave VAPID en Base64 a un ArrayBuffer
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -75,13 +68,11 @@ function urlBase64ToUint8Array(base64String) {
   return outputArray;
 }
 
-// Obtener token CSRF en Django
 function getCSRFToken() {
   const csrfToken = document.querySelector("[name=csrfmiddlewaretoken]");
   return csrfToken ? csrfToken.value : '';
 }
 
-// Iniciar suscripción al cargar la página si las notificaciones están permitidas
 document.addEventListener("DOMContentLoaded", async () => {
   if (Notification.permission === "granted") {
     await subscribeUserToPush();

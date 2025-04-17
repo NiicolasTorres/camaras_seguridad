@@ -6,7 +6,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     cameras = models.ManyToManyField(Camera, blank=True) 
     full_name = models.CharField(max_length=150)
-    dni = models.CharField(max_length=20, blank=True, null=True)  # Opcional
+    dni = models.CharField(max_length=20, blank=True, null=True)  
     phone_number = models.CharField(max_length=15, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     timezone = models.CharField(max_length=50, default='UTC')
@@ -17,7 +17,7 @@ class UserProfile(models.Model):
     notification_method = models.CharField(max_length=20, choices=[('email', 'Email'), ('sms', 'SMS'), ('push', 'Notificaciones Push')], default='email')
     profile_picture = models.ImageField(upload_to='profile_pics/', blank=True, null=True)
     subscription_info = models.JSONField(null=True, blank=True)
-    vapid_private_key = models.TextField(null=True, blank=True)  # Clave privada VAPID
+    vapid_private_key = models.TextField(null=True, blank=True)  
     vapid_public_key = models.TextField(null=True, blank=True)
     latitude = models.FloatField(null=True, blank=True)  
     longitude = models.FloatField(null=True, blank=True)  

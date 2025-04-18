@@ -13,7 +13,7 @@ DEBUG = True
 ALLOWED_HOSTS = ['app.silenteye.com.mx', '75.119.148.43']
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://app.silenteye.com.mx',
+    'app.silenteye.com.mx',
 ]
 
 LOGIN_REDIRECT_URL = '/profile/'

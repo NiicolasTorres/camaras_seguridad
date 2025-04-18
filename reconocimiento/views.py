@@ -31,6 +31,7 @@ from django.http import FileResponse, Http404
 from datetime import datetime
 import csv
 from django.http import HttpResponse
+import scapy.all as scapy
 
 def manifest(request):
     return JsonResponse({
@@ -91,13 +92,19 @@ def scan_network(local_ip):
     broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
     arp_request_broadcast = broadcast / arp_request
 
-    answered_list = srp(arp_request_broadcast, timeout=1, verbose=False)[0]
+    try:
+        answered_list = srp(arp_request_broadcast, timeout=1, verbose=False)[0]
+    except Exception as e:
+        print(f"Error al escanear la red: {e}")
+        return devices
+
     for element in answered_list:
         ip = element[1].psrc
         mac = element[1].hwsrc
         devices.append({'ip': ip, 'mac': mac})
     
     return devices
+
 
 def is_camera(mac_address):
     try:
@@ -160,36 +167,33 @@ def set_default_camera(request, camera_id):
 
 def camera_feed(request, camera_id):
     camera = get_object_or_404(Camera, id=camera_id)
-    camera_ip = camera.ip_address
-
-    if camera_ip not in stream_threads:
-        stream_threads[camera_ip] = VideoStream(camera_ip)
-        stream_threads[camera_ip].start()
+    if camera.ip_address not in stream_threads:
+        stream_threads[camera.ip_address] = VideoStream(camera)
+        stream_threads[camera.ip_address].start()
 
     def generate():
         while True:
-            frame = stream_threads[camera_ip].get_frame()
+            frame = stream_threads[camera.ip_address].get_frame()
             if frame:
-                yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
             time.sleep(0.03)
-
     return StreamingHttpResponse(generate(), content_type='multipart/x-mixed-replace; boundary=frame')
+
 
 MEDIA_FACE_PATH = "media/faces/"
 
 def save_face_image(frame, top, right, bottom, left):
-    """ Guarda la imagen del rostro detectado """
     if not os.path.exists(MEDIA_FACE_PATH):
-        os.makedirs(MEDIA_FACE_PATH)
+        try:
+            os.makedirs(MEDIA_FACE_PATH)
+        except Exception as e:
+            print(f"Error al crear el directorio para guardar imágenes: {e}")
+            return None
 
     face_image = frame[top:bottom, left:right]
     _, buffer = cv2.imencode('.jpg', face_image)
     return buffer.tobytes()
-
-def recognize_face(encoding, known_encodings):
-    """ Compara el rostro detectado con los registrados """
-    matches = face_recognition.compare_faces(known_encodings, encoding, tolerance=0.6)
-    return matches
 
 class VideoStream(threading.Thread):
     def __init__(self, camera):

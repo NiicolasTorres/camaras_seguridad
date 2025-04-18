@@ -5,12 +5,14 @@
 
 {% block content %}
   <h2 class="mt-4">Lista de Cámaras</h2>
-  
+
+  <!-- Mensaje de estado -->
   <div id="status-message" class="alert alert-info">
     Esperando para detectar cámaras...
   </div>
-  
-  <button class="btn btn-primary" onclick="startDetection()">Iniciar detección</button>
+
+  <!-- Botón para iniciar la detección -->
+  <button onclick="startDetection()" class="btn btn-primary">Iniciar detección</button>
 
   <!-- Cámaras registradas (mostradas por Django) -->
   <div class="row mt-3" id="registered-camera-list">
@@ -34,9 +36,14 @@
 
   <!-- Cámaras detectadas dinámicamente -->
   <div class="row mt-3" id="camera-list"></div>
-  
+
+  <!-- CSRF token y scripts -->
+  <form style="display: none;">
+    {% csrf_token %}
+  </form>
+
   <script>
-    var csrftoken = '{{ csrf_token }}';
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
   </script>
   <script src="{% static 'js/script.js' %}"></script>
 {% endblock %}

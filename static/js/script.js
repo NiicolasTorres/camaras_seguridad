@@ -17,6 +17,7 @@ function startDetection() {
             data.cameras.forEach(camera => {
                 const cameraItem = document.createElement('div');
                 cameraItem.classList.add('col-md-6');
+
                 let buttonHTML = '';
                 if (camera.registered) {
                     buttonHTML = `<button class="btn btn-success mt-2" onclick="setDefaultCamera(${camera.id})">
@@ -27,6 +28,7 @@ function startDetection() {
                                         Registrar y usar como predeterminada
                                   </button>`;
                 }
+
                 cameraItem.innerHTML = `
                     <h4>${camera.name} - ${camera.location}</h4>
                     <p>IP: ${camera.ip}</p>
@@ -34,6 +36,7 @@ function startDetection() {
                     <img src="${camera.url}" class="img-fluid border" width="100%">
                     ${buttonHTML}
                 `;
+
                 cameraList.appendChild(cameraItem);
             });
         })

@@ -12,7 +12,8 @@
   
   <button class="btn btn-primary" onclick="startDetection()">Iniciar detección</button>
 
-  <div class="row mt-3" id="camera-list">
+  <!-- Cámaras registradas (mostradas por Django) -->
+  <div class="row mt-3" id="registered-camera-list">
     {% for camera in cameras %}
       <div class="col-md-4 mt-3">
         <div class="card">
@@ -30,6 +31,9 @@
       </div>
     {% endfor %}
   </div>
+
+  <!-- Cámaras detectadas dinámicamente -->
+  <div class="row mt-3" id="camera-list"></div>
   
   <script>
     var csrftoken = '{{ csrf_token }}';

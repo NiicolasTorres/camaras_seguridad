@@ -85,8 +85,8 @@ def get_local_ip():
 
 def scan_network(local_ip):
     ip_parts = local_ip.split('.')
-    network_range = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"
-    
+    network_range = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"  
+
     devices = []
     arp_request = ARP(pdst=network_range)
     broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
@@ -97,8 +97,9 @@ def scan_network(local_ip):
         ip = element[1].psrc
         mac = element[1].hwsrc
         devices.append({'ip': ip, 'mac': mac})
-    
+
     return devices
+
 
 def is_camera(mac_address):
     try:
@@ -112,6 +113,8 @@ def detect_cameras(request):
     local_ip = get_local_ip()  
     devices = scan_network(local_ip)  
     cameras_list = []
+
+    print("Dispositivos detectados en la red:", devices)  # Debug
 
     for device in devices:
         mac = device['mac']

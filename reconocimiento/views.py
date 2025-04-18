@@ -78,7 +78,7 @@ def get_local_ip():
         s.connect(('10.254.254.254', 1))
         local_ip = s.getsockname()[0]
     except:
-        local_ip = '191.85.48.215'
+        local_ip = '127.0.0.1'
     finally:
         s.close()
     return local_ip

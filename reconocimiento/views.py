@@ -117,7 +117,6 @@ def detect_cameras(request):
         ip = device['ip']
         print(f"Buscando cámara con MAC: {mac}")  
         try:
-
             camera = Camera.objects.get(mac_address__iexact=mac)
             print(f"Cámara encontrada: {camera}") 
             camera_url = f"http://{camera.ip_address}:8080/video"
@@ -143,6 +142,7 @@ def detect_cameras(request):
                 "registered": False
             })
 
+    print("Cámaras detectadas:", cameras_list) 
     return JsonResponse({'cameras': cameras_list})
 
 

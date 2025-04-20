@@ -1,5 +1,5 @@
 
-function scanLocalNetwork() {
+function startDetection() {
     document.getElementById('status-message').innerText = 'Detectando cámaras en tu red local...';
 
 

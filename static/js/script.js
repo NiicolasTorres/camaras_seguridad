@@ -63,7 +63,7 @@ function setDefaultCamera(cameraId) {
 }
 
 function registerAndSetDefaultCamera(mac, ip, name, location) {
-    fetch(`/register_and_set_default_camera/`, {
+    fetch('/register_and_set_default_camera/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

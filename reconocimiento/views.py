@@ -71,20 +71,8 @@ def home(request):
 
     return render(request, 'home.html', {'cameras': cameras})
 
-
-def get_local_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(('8.8.8.8', 80))
-        local_ip = s.getsockname()[0]
-    except Exception:
-        local_ip = '127.0.0.1'
-    finally:
-        s.close()
-    return local_ip
-
-def scan_network(local_ip):
-    ip_parts = local_ip.split('.')
+def scan_network(client_ip):
+    ip_parts = client_ip.split('.')
     network_range = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.0/24"  
 
     devices = []
@@ -104,22 +92,20 @@ def scan_network(local_ip):
 def is_camera(mac_address):
     try:
         camera = Camera.objects.get(mac_address=mac_address)
-        camera_ip = camera.ip_address  
-        return f"http://{camera_ip}:8080/video"
+        return camera 
     except Camera.DoesNotExist:
         return None
 
+
 def detect_cameras(request):
     if request.method == 'POST':
-        local_ip = get_local_ip()  
+        client_ip = request.META.get('REMOTE_ADDR')  
 
-        devices = scan_network(local_ip)  
+        devices = scan_network(client_ip)  
 
         cameras_list = []
         for device in devices:
             mac = device['mac']
-            ip = device['ip']
-
             camera = is_camera(mac)  
             if camera:
                 cameras_list.append({
@@ -128,7 +114,7 @@ def detect_cameras(request):
                     'location': camera.location,
                     'mac': camera.mac_address,
                     'ip': camera.ip_address,
-                    'url': camera.url,
+                    'url': f"http://{camera.ip_address}:8080/video",
                     'registered': True
                 })
             else:
@@ -137,15 +123,14 @@ def detect_cameras(request):
                     'name': 'Cámara no registrada',
                     'location': 'Desconocido',
                     'mac': mac,
-                    'ip': ip,
-                    'url': f'http://{ip}:8080/video',
+                    'ip': device['ip'],
+                    'url': f'http://{device["ip"]}:8080/video',
                     'registered': False
                 })
 
         return JsonResponse({'cameras': cameras_list})
 
     return JsonResponse({'error': 'Método no permitido'}, status=405)
-
 
 def set_default_camera(request, camera_id):
     try:

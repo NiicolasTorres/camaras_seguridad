@@ -1,7 +1,5 @@
-
 function startDetection() {
     document.getElementById('status-message').innerText = 'Detectando cámaras en tu red local...';
-
 
     fetch('/reconocimiento/detect_cameras/', { 
         method: 'POST', 
@@ -47,7 +45,6 @@ function startDetection() {
     });
 }
 
-
 function setDefaultCamera(cameraId) {
     fetch(`/set_default_camera/${cameraId}/`, {
         method: 'POST',
@@ -57,12 +54,12 @@ function setDefaultCamera(cameraId) {
         },
         body: JSON.stringify({ cameraId: cameraId })
     })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-            window.location.href = `/camera_feed/${cameraId}/`;
-        })
-        .catch(error => console.error('Error al establecer cámara:', error));
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        window.location.href = `/camera_feed/${cameraId}/`;
+    })
+    .catch(error => console.error('Error al establecer cámara:', error));
 }
 
 function registerAndSetDefaultCamera(mac, ip, name, location) {
@@ -74,10 +71,10 @@ function registerAndSetDefaultCamera(mac, ip, name, location) {
         },
         body: JSON.stringify({ mac: mac, ip: ip, name: name, location: location })
     })
-        .then(response => response.json())
-        .then(data => {
-            alert(data.message);
-            window.location.href = `/camera_feed/${data.camera_id}/`;
-        })
-        .catch(error => console.error('Error al registrar y establecer cámara:', error));
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        window.location.href = `/camera_feed/${data.camera_id}/`;
+    })
+    .catch(error => console.error('Error al registrar y establecer cámara:', error));
 }

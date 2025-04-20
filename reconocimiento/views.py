@@ -110,44 +110,41 @@ def is_camera(mac_address):
         return None
 
 def detect_cameras(request):
-    local_ip = get_local_ip()  
-    devices = scan_network(local_ip)  
-    cameras_list = []
+    if request.method == 'POST':
+        local_ip = get_local_ip()  
 
-    print("Dispositivos detectados en la red:", devices)  # Debug
+        devices = scan_network(local_ip)  
 
-    for device in devices:
-        mac = device['mac']
-        ip = device['ip']
-        print(f"Buscando cámara con MAC: {mac}")  
-        try:
-            camera = Camera.objects.get(mac_address__iexact=mac)
-            print(f"Cámara encontrada: {camera}") 
-            camera_url = f"http://{camera.ip_address}:8080/video"
-            cameras_list.append({
-                "id": camera.id,
-                "name": camera.name,
-                "location": camera.location,
-                "mac": camera.mac_address,
-                "ip": camera.ip_address,
-                "url": camera_url,
-                "registered": True
-            })
-        except Camera.DoesNotExist:
-            print(f"No se encontró cámara para MAC: {mac}") 
-            camera_url = f"http://{ip}:8080/video"
-            cameras_list.append({
-                "id": None,
-                "name": "Cámara no registrada",
-                "location": "Desconocido",
-                "mac": mac,
-                "ip": ip,
-                "url": camera_url,
-                "registered": False
-            })
+        cameras_list = []
+        for device in devices:
+            mac = device['mac']
+            ip = device['ip']
 
-    print("Cámaras detectadas:", cameras_list) 
-    return JsonResponse({'cameras': cameras_list})
+            camera = is_camera(mac)  
+            if camera:
+                cameras_list.append({
+                    'id': camera.id,
+                    'name': camera.name,
+                    'location': camera.location,
+                    'mac': camera.mac_address,
+                    'ip': camera.ip_address,
+                    'url': camera.url,
+                    'registered': True
+                })
+            else:
+                cameras_list.append({
+                    'id': None,
+                    'name': 'Cámara no registrada',
+                    'location': 'Desconocido',
+                    'mac': mac,
+                    'ip': ip,
+                    'url': f'http://{ip}:8080/video',
+                    'registered': False
+                })
+
+        return JsonResponse({'cameras': cameras_list})
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
 
 
 def set_default_camera(request, camera_id):

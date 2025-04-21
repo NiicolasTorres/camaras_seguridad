@@ -26,33 +26,31 @@ async function scanLan(prefix) {
   const ips = Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`);
 
   await Promise.all(
-      ips.map(ip =>
-          new Promise(resolve => {
-              const img = new Image();
-              let done = false;
+    ips.map(ip => new Promise(resolve => {
+      const img = new Image();
+      let done = false;
 
-              img.onload = () => {
-                  if (!done) {
-                      done = true;
-                      found.push(ip);
-                  }
-                  resolve();
-              };
-              img.onerror = () => {
-                  done = true;
-                  resolve();
-              };
+      img.onload = () => {
+        if (!done) {
+          done = true;
+          found.push(ip);
+        }
+        resolve();
+      };
+      img.onerror = () => {
+        done = true;
+        resolve();
+      };
 
-              timeouts.push(setTimeout(() => {
-                  if (!done) {
-                      done = true;
-                      resolve();
-                  }
-              }, 1000));
+      img.src = `http://${ip}:8080/video`;
 
-              img.src = `/proxy_camera/?ip=${ip}`;  
-          })
-      )
+      timeouts.push(setTimeout(() => {
+        if (!done) {
+          done = true;
+          resolve();
+        }
+      }, 1000));
+    }))
   );
 
   timeouts.forEach(clearTimeout);
@@ -61,56 +59,28 @@ async function scanLan(prefix) {
 
 async function startDetection() {
   document.getElementById('status-message').innerText = '🔍 Escaneando tu red local…';
-
   let prefix;
   try {
-      prefix = await getLocalIpPrefix();
-  } catch (e) {
-      console.error('❌ No se pudo obtener IP local:', e);
-      document.getElementById('status-message').innerText = 'Error al obtener IP local.';
-      return;
+    prefix = await getLocalIpPrefix();
+  } catch {
+    document.getElementById('status-message').innerText = 'Error al obtener IP local.';
+    return;
   }
 
   const ipsDetectadas = await scanLan(prefix);
-
-  if (ipsDetectadas.length === 0) {
-      document.getElementById('status-message').innerText = '😕 No se encontraron cámaras.';
-      return;
+  if (!ipsDetectadas.length) {
+    document.getElementById('status-message').innerText = '😕 No se encontraron cámaras.';
+    return;
   }
 
-  fetch('/reconocimiento/detect_cameras/', {
-      method: 'POST',
-      headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrftoken
-      },
-      body: JSON.stringify({ ips: ipsDetectadas })
-  })
-      .then(res => res.json())
-      .then(data => {
-          const cameraList = document.getElementById('camera-list');
-          cameraList.innerHTML = '';
-          data.cameras.forEach(cam => {
-              const div = document.createElement('div');
-              div.classList.add('col-md-6');
-              div.innerHTML = `
-                  <h4>${cam.name} — ${cam.location}</h4>
-                  <p>IP: ${cam.ip}</p>
-                  <p>MAC: ${cam.mac || '—'}</p>
-                  <img src="${cam.url}" class="img-fluid border" width="100%">
-                  <button class="btn btn-success mt-2"
-                          onclick="setDefaultCamera(${cam.id || 'null'})">
-                      Usar como predeterminada
-                  </button>
-              `;
-              cameraList.appendChild(div);
-          });
-          document.getElementById('status-message').innerText = '✅ Detección finalizada.';
-      })
-      .catch(err => {
-          console.error('❌ Error al contactar al servidor:', err);
-          document.getElementById('status-message').innerText = 'Error al contactar al servidor.';
-      });
+  const res = await fetch('/reconocimiento/detect_cameras/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+    body: JSON.stringify({ ips: ipsDetectadas })
+  });
+  const data = await res.json();
+  renderCameraList(data.cameras);
+  document.getElementById('status-message').innerText = '✅ Detección finalizada.';
 }
 
 function setDefaultCamera(cameraId) {

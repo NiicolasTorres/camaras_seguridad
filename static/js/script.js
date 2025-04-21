@@ -50,7 +50,7 @@ function getLocalIpPrefix() {
             }
           }, 1000));
   
-          img.src = `http://${ip}:8080/video`;
+          img.src = `/proxy_camera/?ip=${ip}`;
         })
       )
     );

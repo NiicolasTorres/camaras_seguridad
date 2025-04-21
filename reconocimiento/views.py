@@ -32,6 +32,7 @@ from datetime import datetime
 import csv
 from django.http import HttpResponse
 import scapy.all as scapy
+from django.http import HttpResponseNotFound
 
 def manifest(request):
     return JsonResponse({
@@ -103,6 +104,15 @@ def detect_cameras(request):
             })
 
     return JsonResponse({'cameras': result})
+
+def proxy_camera(request):
+    ip = request.GET.get('ip')
+    try:
+        url = f'http://{ip}:8080/video'
+        response = requests.get(url, stream=True)
+        return HttpResponse(response.content, content_type='image/jpeg')
+    except:
+        return HttpResponseNotFound()
 
 def set_default_camera(request, camera_id):
     try:

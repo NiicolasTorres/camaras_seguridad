@@ -31,6 +31,7 @@ async function scanLan(prefix) {
 }
 
 async function startDetection() {
+  console.log('Iniciando detección...');
   statusEl.innerText = '🔍 Buscando cámaras en la red local...';
   detectBtn.disabled = true;
   listEl.innerHTML = '';

@@ -40,7 +40,6 @@ async function scanLan(prefix) {
   return found;
 }
 
-
 async function startDetection() {
   let prefix;
   try {
@@ -55,8 +54,6 @@ async function startDetection() {
     console.warn("No encontré cámaras en la red local.");
     return;
   }
-
-  // 4) Enviás al servidor remoto para que chequee registro y devuelva datos
   try {
     const res = await fetch('/detect_cameras/', {
       method: 'POST',
@@ -65,6 +62,7 @@ async function startDetection() {
     });
     const data = await res.json();
     console.log("Cámaras detectadas:", data.cameras);
+    renderCameraList(data.cameras); 
   } catch (e) {
     console.error("Error enviando las IPs al backend:", e);
   }

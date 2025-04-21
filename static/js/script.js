@@ -1,3 +1,10 @@
+document.addEventListener('DOMContentLoaded', () => {
+  const statusEl = document.getElementById('status-message');
+  const detectBtn = document.querySelector('button[onclick="startDetection()"]');
+  const listEl = document.getElementById('camera-list');
+
+  detectBtn.addEventListener('click', startDetection);
+
 async function getPublicIp() {
   const response = await fetch('https://api.ipify.org?format=json');
   const data = await response.json();
@@ -105,3 +112,4 @@ function registerAndSetDefaultCamera(mac, ip, name, location) {
 }
 
 detectBtn.addEventListener('click', startDetection);
+});

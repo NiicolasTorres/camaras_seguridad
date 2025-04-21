@@ -1,13 +1,19 @@
 
+
+const detectBtn = document.getElementById('detect-btn');
+
+const statusEl = document.getElementById('status-message');
+const listEl   = document.getElementById('camera-list');
+
 async function getLocalIpPrefix() {
   return new Promise((resolve, reject) => {
     const pc = new RTCPeerConnection({ iceServers: [] });
     pc.createDataChannel('');
     pc.createOffer()
       .then(offer => pc.setLocalDescription(offer))
-      .catch(err => reject(err));
+      .catch(reject);
     pc.onicecandidate = ({ candidate }) => {
-      if (!candidate || !candidate.candidate) return;
+      if (!candidate?.candidate) return;
       const m = candidate.candidate.match(/((?:\d{1,3}\.){3}\d{1,3})/);
       if (m) {
         pc.onicecandidate = null;
@@ -22,81 +28,79 @@ async function getLocalIpPrefix() {
 
 async function scanLan(prefix) {
   const found = [];
-  const ips = Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`);
+  for (let i = 1; i <= 254; i++) {
+    const ip = `${prefix}.${i}`;
+    try {
+      await fetch(`http://${ip}:8080/photo.jpg`, { mode: 'no-cors' });
+      found.push(ip);
+    } catch {
 
-  await Promise.all(
-    ips.map(ip => new Promise(resolve => {
-      const img = new Image();
-      img.onload = () => {
-        found.push(ip);
-        resolve();
-      };
-      img.onerror = () => {
-        resolve();
-      };
-      img.src = `http://${ip}:8080/video`;
-    }))
-  );
-
+    }
+  }
   return found;
 }
 
 async function startDetection() {
-  const status = document.getElementById("status-message");
-  status.innerText = "🔍 Buscando cámaras en la red local...";
-  
+  statusEl.innerText = '🔍 Buscando cámaras en la red local...';
+  detectBtn.disabled = true;
+  listEl.innerHTML    = '';
+
   let prefix;
   try {
     prefix = await getLocalIpPrefix();
-  } catch (e) {
-    status.innerText = "❌ No pude determinar tu IP local.";
+  } catch {
+    statusEl.innerText = '❌ No pude determinar tu IP local.';
+    detectBtn.disabled = false;
     return;
   }
-  
+
   const camsIps = await scanLan(prefix);
   if (!camsIps.length) {
-    status.innerText = "⚠️ No se encontraron cámaras.";
+    statusEl.innerText = '⚠️ No se encontraron cámaras.';
+    detectBtn.disabled = false;
     return;
   }
-  
+
   let data;
   try {
     const res = await fetch('/detect_cameras/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrftoken
+      },
       body: JSON.stringify({ ips: camsIps })
     });
     data = await res.json();
-  } catch (e) {
-    status.innerText = "❌ Error al contactar al servidor.";
+  } catch {
+    statusEl.innerText = '❌ Error al contactar al servidor.';
+    detectBtn.disabled = false;
     return;
   }
 
-  renderCameraList(data.cameras);
-  status.innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
-}
-
-function renderCameraList(cams) {
-  const container = document.getElementById('camera-list');
-  container.innerHTML = '';
-
-  cams.forEach(cam => {
-    const col = document.createElement('div');
-    col.className = 'col-md-4 mt-3';
-    col.innerHTML = `
+  data.cameras.forEach(cam => {
+    const card = document.createElement('div');
+    card.className = 'col-md-4 mt-3';
+    card.innerHTML = `
       <div class="card">
-        <img src="http://${cam.ip}:8080/video" class="card-img-top" alt="${cam.name}">
+        <img src="http://${cam.ip}:8080/photo.jpg" class="card-img-top" alt="${cam.name}">
         <div class="card-body">
           <h5 class="card-title">${cam.name}</h5>
           <p class="card-text">IP: ${cam.ip}</p>
           <button class="btn btn-success" onclick="registerAndSetDefaultCamera(
-            '${cam.mac}', '${cam.ip}', prompt('Nombre de cámara', '${cam.name}'), prompt('Ubicación', '${cam.location}')
+            '${cam.mac||''}',
+            '${cam.ip}',
+            prompt('Nombre de cámara', '${cam.name}'),
+            prompt('Ubicación', '${cam.location}')
           )">Registrar y usar</button>
         </div>
       </div>
     `;
-    container.appendChild(col);
+    listEl.appendChild(card);
   });
+
+  statusEl.innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
+  detectBtn.disabled = false;
 }
 
 function registerAndSetDefaultCamera(mac, ip, name, location) {
@@ -108,10 +112,12 @@ function registerAndSetDefaultCamera(mac, ip, name, location) {
     },
     body: JSON.stringify({ mac, ip, name, location })
   })
-  .then(res => res.json())
-  .then(data => {
-    alert(data.message);
-    window.location.href = `/reconocimiento/camera_feed_template/${data.camera_id}/`;
+  .then(r => r.json())
+  .then(d => {
+    alert(d.message);
+    window.location.href = `/reconocimiento/camera_feed_template/${d.camera_id}/`;
   })
   .catch(() => alert('❌ Error al registrar la cámara.'));
 }
+
+detectBtn.addEventListener('click', startDetection);

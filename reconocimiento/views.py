@@ -80,6 +80,9 @@ def detect_cameras(request):
     ips = payload.get('ips', [])
     result = []
 
+    # Verifica que las IPs lleguen correctamente
+    print("IPs recibidas:", ips)
+
     for ip in ips:
         cam = Camera.objects.filter(ip_address=ip).first()
         if cam:
@@ -104,6 +107,9 @@ def detect_cameras(request):
                 'registered': False
             })
 
+    # Verifica el resultado
+    print("Resultado de cámaras detectadas:", result)
+    
     return JsonResponse({'cameras': result})
 
 def proxy_camera(request):

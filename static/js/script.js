@@ -39,45 +39,41 @@ async function scanLan(prefix) {
 
   return found;
 }
-async function startDetection() {
+function startDetection() {
   document.getElementById("status-message").innerText = "🔍 Buscando cámaras en la red local...";
   console.log("✅ startDetection() llamada");
 
   let prefix;
-  try {
-    prefix = await getLocalIpPrefix();
-    console.log("📡 Prefijo de IP detectado:", prefix);
-  } catch (e) {
-    console.error("❌ No pude determinar tu IP local:", e);
-    document.getElementById("status-message").innerText = "Error obteniendo IP local.";
-    return;
-  }
+  getLocalIpPrefix()
+    .then(prefix => {
+      console.log("📡 Prefijo de IP detectado:", prefix);
 
-  const camsIps = await scanLan(prefix);
-  console.log("🔎 IPs con cámara detectadas:", camsIps);
+      return scanLan(prefix);
+    })
+    .then(camsIps => {
+      console.log("🔎 IPs con cámara detectadas:", camsIps);
 
-  if (!camsIps.length) {
-    document.getElementById("status-message").innerText = "No se encontraron cámaras.";
-    return;
-  }
-
-  try {
-    const res = await fetch('/detect_cameras/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ips: camsIps })
+      if (!camsIps.length) {
+        document.getElementById("status-message").innerText = "No se encontraron cámaras.";
+        return;
+      }
+      return fetch('/detect_cameras/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ips: camsIps })
+      });
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log("📦 Respuesta del backend:", data);
+      renderCameraList(data.cameras);
+      document.getElementById("status-message").innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
+    })
+    .catch(e => {
+      console.error("❌ Error detectando cámaras:", e);
+      document.getElementById("status-message").innerText = "Error al contactar con el servidor.";
     });
-
-    const data = await res.json();
-    console.log("📦 Respuesta del backend:", data);
-    renderCameraList(data.cameras);
-    document.getElementById("status-message").innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
-  } catch (e) {
-    console.error("❌ Error enviando las IPs al backend:", e);
-    document.getElementById("status-message").innerText = "Error al contactar con el servidor.";
-  }
 }
-
 function renderCameraList(cams) {
   const container = document.getElementById('camera-list');
   container.innerHTML = '';

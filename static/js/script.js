@@ -1,35 +1,12 @@
-
-
-const detectBtn = document.getElementById('detect-btn');
-
-const statusEl = document.getElementById('status-message');
-const listEl   = document.getElementById('camera-list');
-
-async function getLocalIpPrefix() {
-  return new Promise((resolve, reject) => {
-    const pc = new RTCPeerConnection({ iceServers: [] });
-    pc.createDataChannel('');
-    pc.createOffer()
-      .then(offer => pc.setLocalDescription(offer))
-      .catch(reject);
-    pc.onicecandidate = ({ candidate }) => {
-      if (!candidate?.candidate) return;
-      const m = candidate.candidate.match(/((?:\d{1,3}\.){3}\d{1,3})/);
-      if (m) {
-        pc.onicecandidate = null;
-        pc.close();
-        const parts = m[1].split('.');
-        parts.pop();
-        const localIpPrefix = parts.join('.');  
-        console.log("Local IP Prefix:", localIpPrefix);
-        resolve(localIpPrefix);
-      }
-    };
-  });
+async function getPublicIp() {
+  const response = await fetch('https://api.ipify.org?format=json');
+  const data = await response.json();
+  return data.ip;
 }
+
 async function scanLan(prefix) {
   const found = [];
-  const ports = [8080, 8081, 80];  // Probamos varios puertos comunes para cámaras
+  const ports = [8080, 8081, 80]; 
   for (let i = 1; i <= 254; i++) {
     const ip = `${prefix}.${i}`;
     for (const port of ports) {
@@ -51,16 +28,18 @@ async function startDetection() {
   detectBtn.disabled = true;
   listEl.innerHTML = '';
 
-  let prefix;
+  let publicIp;
   try {
-    prefix = await getLocalIpPrefix();
+    publicIp = await getPublicIp(); 
   } catch {
-    statusEl.innerText = '❌ No pude determinar tu IP local.';
+    statusEl.innerText = '❌ No pude determinar tu IP pública.';
     detectBtn.disabled = false;
     return;
   }
 
+  const prefix = publicIp.split('.').slice(0, 3).join('.');  
   const camsIps = await scanLan(prefix);
+  
   if (!camsIps.length) {
     statusEl.innerText = '⚠️ No se encontraron cámaras.';
     detectBtn.disabled = false;
@@ -108,7 +87,6 @@ async function startDetection() {
   statusEl.innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
   detectBtn.disabled = false;
 }
-
 function registerAndSetDefaultCamera(mac, ip, name, location) {
   fetch('/register_and_set_default_camera/', {
     method: 'POST',

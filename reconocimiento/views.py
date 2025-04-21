@@ -80,7 +80,6 @@ def detect_cameras(request):
     ips = payload.get('ips', [])
     result = []
 
-    # Verifica que las IPs lleguen correctamente
     print("IPs recibidas:", ips)
 
     for ip in ips:
@@ -107,7 +106,6 @@ def detect_cameras(request):
                 'registered': False
             })
 
-    # Verifica el resultado
     print("Resultado de cámaras detectadas:", result)
     
     return JsonResponse({'cameras': result})

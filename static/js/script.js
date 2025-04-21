@@ -28,15 +28,19 @@ async function getLocalIpPrefix() {
 
 async function scanLan(prefix) {
   const found = [];
+  const ports = [8080, 8081, 80];
   for (let i = 1; i <= 254; i++) {
     const ip = `${prefix}.${i}`;
-    try {
-      const res = await fetch(`/proxy_camera?ip=${ip}`);
-      if (res.ok) {
-        found.push(ip);
+    for (const port of ports) {
+      try {
+        const res = await fetch(`http://${ip}:${port}/video`, { timeout: 5000 });
+        if (res.ok) {
+          found.push(ip);
+          break; 
+        }
+      } catch (e) {
+        console.log(`No se pudo acceder a ${ip}:${port}`);
       }
-    } catch (e) {
-      console.log(`No se pudo acceder a ${ip}`);
     }
   }
   return found;

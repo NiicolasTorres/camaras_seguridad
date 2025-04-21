@@ -39,32 +39,42 @@ async function scanLan(prefix) {
 
   return found;
 }
-
 async function startDetection() {
+  document.getElementById("status-message").innerText = "🔍 Buscando cámaras en la red local...";
+  console.log("✅ startDetection() llamada");
+
   let prefix;
   try {
     prefix = await getLocalIpPrefix();
+    console.log("📡 Prefijo de IP detectado:", prefix);
   } catch (e) {
-    console.error("No pude determinar tu IP local:", e);
+    console.error("❌ No pude determinar tu IP local:", e);
+    document.getElementById("status-message").innerText = "Error obteniendo IP local.";
     return;
   }
 
   const camsIps = await scanLan(prefix);
+  console.log("🔎 IPs con cámara detectadas:", camsIps);
+
   if (!camsIps.length) {
-    console.warn("No encontré cámaras en la red local.");
+    document.getElementById("status-message").innerText = "No se encontraron cámaras.";
     return;
   }
+
   try {
     const res = await fetch('/detect_cameras/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ips: camsIps })
     });
+
     const data = await res.json();
-    console.log("Cámaras detectadas:", data.cameras);
-    renderCameraList(data.cameras); 
+    console.log("📦 Respuesta del backend:", data);
+    renderCameraList(data.cameras);
+    document.getElementById("status-message").innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
   } catch (e) {
-    console.error("Error enviando las IPs al backend:", e);
+    console.error("❌ Error enviando las IPs al backend:", e);
+    document.getElementById("status-message").innerText = "Error al contactar con el servidor.";
   }
 }
 

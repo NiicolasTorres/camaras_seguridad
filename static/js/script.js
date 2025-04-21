@@ -31,14 +31,17 @@ async function scanLan(prefix) {
   for (let i = 1; i <= 254; i++) {
     const ip = `${prefix}.${i}`;
     try {
-      await fetch(`http://${ip}:8080/photo.jpg`, { mode: 'no-cors' });
-      found.push(ip);
-    } catch {
-
+      const res = await fetch(`/proxy_camera?ip=${ip}`);
+      if (res.ok) {
+        found.push(ip);
+      }
+    } catch (e) {
+      console.log(`No se pudo acceder a ${ip}`);
     }
   }
   return found;
 }
+
 
 async function startDetection() {
   statusEl.innerText = '🔍 Buscando cámaras en la red local...';

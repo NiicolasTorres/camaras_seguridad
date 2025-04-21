@@ -20,7 +20,7 @@ async function getLocalIpPrefix() {
         pc.close();
         const parts = m[1].split('.');
         parts.pop();
-        resolve(parts.join('.'));
+        resolve(parts.join('.'));  
       }
     };
   });

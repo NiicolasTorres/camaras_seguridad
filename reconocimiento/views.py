@@ -78,37 +78,36 @@ def detect_cameras(request):
 
     payload = json.loads(request.body)
     ips = payload.get('ips', [])
+    
+    print("IPs recibidas:", ips)  
+
     result = []
-
-    print("IPs recibidas:", ips)
-
     for ip in ips:
         cam = Camera.objects.filter(ip_address=ip).first()
         if cam:
             url = f'http://{cam.ip_address}:8080/video' if cam.ip_address else f'http://{ip}:8080/video'
             result.append({
-                'id':         cam.id,
-                'name':       cam.name,
-                'location':   cam.location,
-                'mac':        cam.mac_address,
-                'ip':         cam.ip_address,
-                'url':        url,
+                'id': cam.id,
+                'name': cam.name,
+                'location': cam.location,
+                'mac': cam.mac_address,
+                'ip': cam.ip_address,
+                'url': url,
                 'registered': True
             })
         else:
             result.append({
-                'id':         None,
-                'name':       'Cámara no registrada',
-                'location':   'Desconocido',
-                'mac':        None,
-                'ip':         ip,
-                'url':        f'http://{ip}:8080/video',
+                'id': None,
+                'name': 'Cámara no registrada',
+                'location': 'Desconocido',
+                'mac': None,
+                'ip': ip,
+                'url': f'http://{ip}:8080/video',
                 'registered': False
             })
 
-    print("Resultado de cámaras detectadas:", result)
-    
     return JsonResponse({'cameras': result})
+
 
 def proxy_camera(request):
     ip = request.GET.get('ip')

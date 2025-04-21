@@ -20,12 +20,13 @@ async function getLocalIpPrefix() {
         pc.close();
         const parts = m[1].split('.');
         parts.pop();
-        resolve(parts.join('.'));  
+        const localIpPrefix = parts.join('.');  
+        console.log("Local IP Prefix:", localIpPrefix);
+        resolve(localIpPrefix);
       }
     };
   });
 }
-
 async function scanLan(prefix) {
   const found = [];
   const ports = [8080, 8081, 80];  // Probamos varios puertos comunes para cámaras

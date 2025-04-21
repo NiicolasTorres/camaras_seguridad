@@ -28,7 +28,7 @@ async function getLocalIpPrefix() {
 
 async function scanLan(prefix) {
   const found = [];
-  const ports = [8080, 8081, 80];
+  const ports = [8080, 8081, 80];  // Probamos varios puertos comunes para cámaras
   for (let i = 1; i <= 254; i++) {
     const ip = `${prefix}.${i}`;
     for (const port of ports) {
@@ -36,21 +36,19 @@ async function scanLan(prefix) {
         const res = await fetch(`http://${ip}:${port}/video`, { timeout: 5000 });
         if (res.ok) {
           found.push(ip);
-          break; 
+          break;
         }
       } catch (e) {
-        console.log(`No se pudo acceder a ${ip}:${port}`);
       }
     }
   }
   return found;
 }
 
-
 async function startDetection() {
   statusEl.innerText = '🔍 Buscando cámaras en la red local...';
   detectBtn.disabled = true;
-  listEl.innerHTML    = '';
+  listEl.innerHTML = '';
 
   let prefix;
   try {
@@ -95,8 +93,8 @@ async function startDetection() {
           <h5 class="card-title">${cam.name}</h5>
           <p class="card-text">IP: ${cam.ip}</p>
           <button class="btn btn-success" onclick="registerAndSetDefaultCamera(
-            '${cam.mac||''}',
-            '${cam.ip}',
+            '${cam.mac || ''}', 
+            '${cam.ip}', 
             prompt('Nombre de cámara', '${cam.name}'),
             prompt('Ubicación', '${cam.location}')
           )">Registrar y usar</button>

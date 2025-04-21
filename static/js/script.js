@@ -1,3 +1,4 @@
+
 async function getLocalIpPrefix() {
   return new Promise((resolve, reject) => {
     const pc = new RTCPeerConnection({ iceServers: [] });
@@ -5,7 +6,6 @@ async function getLocalIpPrefix() {
     pc.createOffer()
       .then(offer => pc.setLocalDescription(offer))
       .catch(err => reject(err));
-
     pc.onicecandidate = ({ candidate }) => {
       if (!candidate || !candidate.candidate) return;
       const m = candidate.candidate.match(/((?:\d{1,3}\.){3}\d{1,3})/);
@@ -13,12 +13,13 @@ async function getLocalIpPrefix() {
         pc.onicecandidate = null;
         pc.close();
         const parts = m[1].split('.');
-        parts.pop();                
-        resolve(parts.join('.'));  
+        parts.pop();
+        resolve(parts.join('.'));
       }
     };
   });
 }
+
 async function scanLan(prefix) {
   const found = [];
   const ips = Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`);
@@ -26,54 +27,55 @@ async function scanLan(prefix) {
   await Promise.all(
     ips.map(ip => new Promise(resolve => {
       const img = new Image();
-      img.onload = function() {
-        found.push(ip);  
+      img.onload = () => {
+        found.push(ip);
         resolve();
       };
-      img.onerror = function() {
-        resolve();  
+      img.onerror = () => {
+        resolve();
       };
-      img.src = `http://${ip}:8080/video`;  
+      img.src = `http://${ip}:8080/video`;
     }))
   );
 
   return found;
 }
-function startDetection() {
-  document.getElementById("status-message").innerText = "🔍 Buscando cámaras en la red local...";
-  console.log("✅ startDetection() llamada");
 
+async function startDetection() {
+  const status = document.getElementById("status-message");
+  status.innerText = "🔍 Buscando cámaras en la red local...";
+  
   let prefix;
-  getLocalIpPrefix()
-    .then(prefix => {
-      console.log("📡 Prefijo de IP detectado:", prefix);
-
-      return scanLan(prefix);
-    })
-    .then(camsIps => {
-      console.log("🔎 IPs con cámara detectadas:", camsIps);
-
-      if (!camsIps.length) {
-        document.getElementById("status-message").innerText = "No se encontraron cámaras.";
-        return;
-      }
-      return fetch('/detect_cameras/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ips: camsIps })
-      });
-    })
-    .then(res => res.json())
-    .then(data => {
-      console.log("📦 Respuesta del backend:", data);
-      renderCameraList(data.cameras);
-      document.getElementById("status-message").innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
-    })
-    .catch(e => {
-      console.error("❌ Error detectando cámaras:", e);
-      document.getElementById("status-message").innerText = "Error al contactar con el servidor.";
+  try {
+    prefix = await getLocalIpPrefix();
+  } catch (e) {
+    status.innerText = "❌ No pude determinar tu IP local.";
+    return;
+  }
+  
+  const camsIps = await scanLan(prefix);
+  if (!camsIps.length) {
+    status.innerText = "⚠️ No se encontraron cámaras.";
+    return;
+  }
+  
+  let data;
+  try {
+    const res = await fetch('/detect_cameras/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ips: camsIps })
     });
+    data = await res.json();
+  } catch (e) {
+    status.innerText = "❌ Error al contactar al servidor.";
+    return;
+  }
+
+  renderCameraList(data.cameras);
+  status.innerText = `🎥 Se detectaron ${data.cameras.length} cámara(s).`;
 }
+
 function renderCameraList(cams) {
   const container = document.getElementById('camera-list');
   container.innerHTML = '';
@@ -97,7 +99,6 @@ function renderCameraList(cams) {
   });
 }
 
-// Registra en el servidor una cámara detectada y la marca como predeterminada
 function registerAndSetDefaultCamera(mac, ip, name, location) {
   fetch('/register_and_set_default_camera/', {
     method: 'POST',
@@ -107,13 +108,10 @@ function registerAndSetDefaultCamera(mac, ip, name, location) {
     },
     body: JSON.stringify({ mac, ip, name, location })
   })
-  .then(response => response.json())
+  .then(res => res.json())
   .then(data => {
     alert(data.message);
     window.location.href = `/reconocimiento/camera_feed_template/${data.camera_id}/`;
   })
-  .catch(error => {
-    console.error('❌ Error al registrar y establecer cámara:', error);
-    alert('Ocurrió un error al registrar la cámara.');
-  });
+  .catch(() => alert('❌ Error al registrar la cámara.'));
 }

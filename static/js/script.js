@@ -78,7 +78,7 @@ function getLocalIpPrefix() {
     }
   
     // 4) Envío al servidor para ver cuáles están registradas
-    fetch('/detect_cameras/', {
+    fetch('/reconocimiento/detect_cameras/', {
       method:  'POST',
       headers: {
         'Content-Type': 'application/json',

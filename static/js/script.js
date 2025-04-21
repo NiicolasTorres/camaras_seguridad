@@ -23,10 +23,7 @@ async function getLocalIpPrefix() {
 
 async function scanLan(prefix) {
   const found = [];
-  const ips = Array.from(
-    { length: 254 },
-    (_, i) => `${prefix}.${i + 1}`   
-  );
+  const ips = Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`);
 
   await Promise.all(
     ips.map(ip => new Promise(resolve => {
@@ -38,24 +35,16 @@ async function scanLan(prefix) {
         found.push(ip);
         resolve();
       };
-      img.onerror = () => {
-        done = true;
-        resolve();
-      };
-
-      img.src = `http://${ip}:8080/video`;
-
+      img.onerror = () => resolve(); 
+      img.src = `http://${ip}:8080/video`; 
       setTimeout(() => {
-        if (!done) {
-          done = true;
-          resolve();
-        }
-      }, 800);
+        if (!done) resolve(); 
+      }, 1000); 
     }))
   );
-
   return found; 
 }
+
 
 async function startDetection() {
   let prefix;
@@ -72,6 +61,7 @@ async function startDetection() {
     return;
   }
 
+  // 4) Enviás al servidor remoto para que chequee registro y devuelva datos
   try {
     const res = await fetch('/detect_cameras/', {
       method: 'POST',
@@ -108,6 +98,7 @@ function renderCameraList(cams) {
   });
 }
 
+// Registra en el servidor una cámara detectada y la marca como predeterminada
 function registerAndSetDefaultCamera(mac, ip, name, location) {
   fetch('/register_and_set_default_camera/', {
     method: 'POST',

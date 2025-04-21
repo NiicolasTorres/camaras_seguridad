@@ -13,17 +13,20 @@ async function getLocalIpPrefix() {
         pc.onicecandidate = null;
         pc.close();
         const parts = m[1].split('.');
-        parts.pop();
-        resolve(parts.join('.'));
+        parts.pop();                
+        resolve(parts.join('.'));  
       }
     };
   });
 }
 
-// Escanea la LAN probando cada IP en el puerto 8080/video
+
 async function scanLan(prefix) {
   const found = [];
-  const ips = Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`);
+  const ips = Array.from(
+    { length: 254 },
+    (_, i) => `${prefix}.${i + 1}`   
+  );
 
   await Promise.all(
     ips.map(ip => new Promise(resolve => {
@@ -31,10 +34,8 @@ async function scanLan(prefix) {
       let done = false;
 
       img.onload = () => {
-        if (!done) {
-          done = true;
-          found.push(ip);
-        }
+        done = true;
+        found.push(ip);
         resolve();
       };
       img.onerror = () => {
@@ -44,7 +45,6 @@ async function scanLan(prefix) {
 
       img.src = `http://${ip}:8080/video`;
 
-      // timeout para no colgar el Promise
       setTimeout(() => {
         if (!done) {
           done = true;
@@ -54,48 +54,37 @@ async function scanLan(prefix) {
     }))
   );
 
-  return found;
+  return found; 
 }
 
-// Inicia todo el flujo de detección y renderizado
 async function startDetection() {
-  const status = document.getElementById('status-message');
-  status.innerText = '🔍 Escaneando tu red local…';
-
   let prefix;
   try {
     prefix = await getLocalIpPrefix();
-  } catch {
-    // Fallback manual
-    prefix = prompt('No se pudo obtener tu IP local automáticamente.\nPor favor ingresa el prefijo de tu red (ej. 192.168.1):');
-    if (!prefix) {
-      status.innerText = '❌ Se requiere el prefijo de red para escanear.';
-      return;
-    }
-  }
-
-  const ips = await scanLan(prefix);
-  if (!ips.length) {
-    status.innerText = '😕 No encontré ninguna cámara en tu red.';
+  } catch (e) {
+    console.error("No pude determinar tu IP local:", e);
     return;
   }
 
-  // Opcional: registra en el servidor las IPs encontradas
-  const res = await fetch('/reconocimiento/detect_cameras/', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRFToken': csrftoken
-    },
-    body: JSON.stringify({ ips })
-  });
-  const data = await res.json();
+  const camsIps = await scanLan(prefix);
+  if (!camsIps.length) {
+    console.warn("No encontré cámaras en la red local.");
+    return;
+  }
 
-  renderCameraList(data.cameras);
-  status.innerText = '✅ Detección finalizada.';
+  try {
+    const res = await fetch('/detect_cameras/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ips: camsIps })
+    });
+    const data = await res.json();
+    console.log("Cámaras detectadas:", data.cameras);
+  } catch (e) {
+    console.error("Error enviando las IPs al backend:", e);
+  }
 }
 
-// Renderiza las cámaras detectadas dinámicamente en el DOM
 function renderCameraList(cams) {
   const container = document.getElementById('camera-list');
   container.innerHTML = '';
@@ -119,7 +108,6 @@ function renderCameraList(cams) {
   });
 }
 
-// Registra en el servidor una cámara detectada y la marca como predeterminada
 function registerAndSetDefaultCamera(mac, ip, name, location) {
   fetch('/register_and_set_default_camera/', {
     method: 'POST',

@@ -77,19 +77,20 @@ def detect_cameras(request):
         return JsonResponse({'error': 'Método no permitido'}, status=405)
 
     payload = json.loads(request.body)
-    ips = payload.get('ips', []) 
+    ips = payload.get('ips', [])
     result = []
 
     for ip in ips:
         cam = Camera.objects.filter(ip_address=ip).first()
         if cam:
+            url = f'http://{cam.ip_address}:8080/video' if cam.ip_address else f'http://{ip}:8080/video'
             result.append({
                 'id':         cam.id,
                 'name':       cam.name,
                 'location':   cam.location,
                 'mac':        cam.mac_address,
                 'ip':         cam.ip_address,
-                'url':        f'http://{cam.ip_address}:8080/video',
+                'url':        url,
                 'registered': True
             })
         else:

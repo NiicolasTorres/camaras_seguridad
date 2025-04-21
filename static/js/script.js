@@ -19,8 +19,6 @@ async function getLocalIpPrefix() {
     };
   });
 }
-
-
 async function scanLan(prefix) {
   const found = [];
   const ips = Array.from({ length: 254 }, (_, i) => `${prefix}.${i + 1}`);
@@ -28,21 +26,18 @@ async function scanLan(prefix) {
   await Promise.all(
     ips.map(ip => new Promise(resolve => {
       const img = new Image();
-      let done = false;
-
-      img.onload = () => {
-        done = true;
-        found.push(ip);
+      img.onload = function() {
+        found.push(ip);  
         resolve();
       };
-      img.onerror = () => resolve(); 
-      img.src = `http://${ip}:8080/video`; 
-      setTimeout(() => {
-        if (!done) resolve(); 
-      }, 1000); 
+      img.onerror = function() {
+        resolve();  
+      };
+      img.src = `http://${ip}:8080/video`;  
     }))
   );
-  return found; 
+
+  return found;
 }
 
 

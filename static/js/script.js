@@ -1,5 +1,5 @@
 function registerAndSetDefaultCamera(mac, ip, name, location) {
-  fetch('/register_and_set_default_camera/', {
+  fetch('/reconocimiento/register_and_set_default_camera/', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

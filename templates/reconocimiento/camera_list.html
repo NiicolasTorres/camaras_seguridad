@@ -6,43 +6,90 @@
 {% block content %}
   <h2 class="mt-4">Lista de Cámaras</h2>
 
-  <!-- Mensaje de estado -->
-  <div id="status-message" class="alert alert-info">
-    Esperando para detectar cámaras...
+  <!-- Campo para ingresar la IP -->
+  <div class="form-group">
+    <label for="ip-input">Ingrese la IP para buscar cámaras:</label>
+    <input type="text" id="ip-input" class="form-control" placeholder="Ej. 192.168.1.10" />
   </div>
 
   <!-- Botón para iniciar la detección -->
   <button onclick="startDetection()" class="btn btn-primary">Iniciar detección</button>
 
-  <!-- Cámaras registradas (mostradas por Django) -->
-  <div class="row mt-3" id="registered-camera-list">
-    {% for camera in cameras %}
-      <div class="col-md-4 mt-3">
-        <div class="card">
-          <img src="http://{{ request.get_host }}/camera_feed/{{ camera.id }}/" class="card-img-top" alt="{{ camera.name }}">
-          <div class="card-body">
-            <h5 class="card-title">{{ camera.name }}</h5>
-            <p class="card-text">Ubicación: {{ camera.location }}</p>
-            <p class="card-text">IP: {{ camera.ip_address }}</p>
-            <p class="card-text">MAC: {{ camera.mac_address }}</p>
-            <button class="btn btn-success" onclick="setDefaultCamera('{{ camera.id }}')">
-              Usar como predeterminada
-            </button>
-          </div>
-        </div>
-      </div>
-    {% endfor %}
-  </div>
-
-  <!-- Cámaras detectadas dinámicamente -->
-  <div class="row mt-3" id="camera-list"></div>
-
-  <!-- CSRF token y scripts -->
-  <form style="display: none;">
-    {% csrf_token %}
-  </form>
+  <!-- Resultado de las cámaras detectadas -->
+  <div class="row mt-3" id="camera-results"></div>
 
   <script>
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    function startDetection() {
+      const ip = document.getElementById('ip-input').value;
+
+      if (!ip) {
+        alert('Por favor ingrese una IP');
+        return;
+      }
+
+      // Mostrar mensaje de espera
+      document.getElementById('status-message').innerHTML = 'Detectando cámaras...';
+
+      // Enviar solicitud AJAX al backend
+      fetch('/detect_cameras/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}',
+        },
+        body: JSON.stringify({ ips: [ip] }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        const cameras = data.cameras;
+        const cameraResultsDiv = document.getElementById('camera-results');
+        cameraResultsDiv.innerHTML = '';  
+
+        cameras.forEach(camera => {
+          const cameraCard = document.createElement('div');
+          cameraCard.classList.add('col-md-4', 'mt-3');
+          cameraCard.innerHTML = `
+            <div class="card">
+              <img src="http://${camera.ip}:8080/video" class="card-img-top" alt="${camera.name}">
+              <div class="card-body">
+                <h5 class="card-title">${camera.name}</h5>
+                <p class="card-text">Ubicación: ${camera.location}</p>
+                <p class="card-text">IP: ${camera.ip}</p>
+                <button class="btn btn-success" onclick="setDefaultCamera('${camera.id}')">
+                  Usar como predeterminada
+                </button>
+              </div>
+            </div>
+          `;
+          cameraResultsDiv.appendChild(cameraCard);
+        });
+
+        document.getElementById('status-message').innerHTML = 'Cámaras detectadas:';
+      })
+      .catch(error => {
+        console.error('Error al detectar cámaras:', error);
+        document.getElementById('status-message').innerHTML = 'Error al detectar cámaras.';
+      });
+    }
+
+    function setDefaultCamera(cameraId) {
+      fetch(`/set_default_camera/${cameraId}/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': '{{ csrf_token }}',
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        alert(data.message);
+      })
+      .catch(error => console.error('Error al establecer cámara predeterminada:', error));
+    }
   </script>
+
+  <!-- Mensaje de estado -->
+  <div id="status-message" class="alert alert-info">
+    Esperando para detectar cámaras...
+  </div>
 {% endblock %}

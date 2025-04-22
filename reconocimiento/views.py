@@ -86,7 +86,7 @@ def detect_cameras(request):
         cam = Camera.objects.filter(ip_address=ip).first()
         
         if cam:
-            url = f'http://{cam.ip_address}:8080/video'
+            url = f'https://{cam.ip_address}:8080/video'
             result.append({
                 'id': cam.id,
                 'name': cam.name,

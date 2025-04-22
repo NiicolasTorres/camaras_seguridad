@@ -4,7 +4,7 @@
 {% block title %}Lista de Cámaras{% endblock %}
 
 {% block content %}
-  <h2 class="mt-4">Lista de Cámaras AA</h2>
+  <h2 class="mt-4">Lista de Cámaras </h2>
 
   <!-- Campo para ingresar la IP -->
   <div class="form-group">
@@ -31,7 +31,7 @@
       document.getElementById('status-message').innerHTML = 'Detectando cámaras...';
 
       // Enviar solicitud AJAX al backend 
-      fetch('/detect_cameras/', {
+      fetch('/reconocimiento/detect_cameras/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

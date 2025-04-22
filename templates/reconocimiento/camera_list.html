@@ -50,7 +50,7 @@
           cameraCard.classList.add('col-md-4', 'mt-3');
           cameraCard.innerHTML = `
             <div class="card">
-              <img src="http://${camera.ip}:8080/video" class="card-img-top" alt="${camera.name}">
+              <img src="{% url 'proxy_camera' camera.ip_address %}">
               <div class="card-body">
                 <h5 class="card-title">${camera.name}</h5>
                 <p class="card-text">Ubicación: ${camera.location}</p>

@@ -10,7 +10,7 @@ function registerAndSetDefaultCamera(mac, ip, name, location) {
   .then(r => r.json())
   .then(d => {
     alert(d.message);
-    window.location.href = `/reconocimiento/camera_feed_template/${d.camera_id}/`;
+    window.location.href = '/home/'; 
   })
   .catch(() => alert('❌ Error al registrar la cámara.'));
 }

@@ -109,17 +109,17 @@ def detect_cameras(request):
     return JsonResponse({'cameras': result})
 
 
-def proxy_camera(request):
-    ip = request.GET.get('ip')
-    if not ip:
+def proxy_camera(request, camera_ip):
+    if not camera_ip:
         return HttpResponseNotFound("IP no proporcionada")
 
     try:
-        response = requests.get(f'http://{ip}:8080/video', stream=True, timeout=2)
+        response = requests.get(f'http://{camera_ip}:8080/video', stream=True)
         return HttpResponse(response.content, content_type='image/jpeg')
     except Exception as e:
         print(f"[Proxy error]: {e}")
         return HttpResponseNotFound("No se pudo conectar con la cámara.")
+
 
 def set_default_camera(request, camera_id):
     try:

@@ -129,7 +129,7 @@ def proxy_camera(request, camera_ip):
         return HttpResponseNotFound("IP no proporcionada")
 
     try:
-        response = requests.get(f'http://{camera_ip}:8080/video', stream=True)
+        response = requests.get(f'https://{camera_ip}:8080/video', stream=True)
         return HttpResponse(response.content, content_type='image/jpeg')
     except Exception as e:
         print(f"[Proxy error]: {e}")

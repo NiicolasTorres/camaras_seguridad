@@ -23,7 +23,4 @@ urlpatterns = [
     path('service-worker.js', service_worker, name='service_worker'),
     path('mapa_alerta/', views.redirect_to_map, name='mapa_alerta'),
     path('proxy_camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
-
-
-
 ]

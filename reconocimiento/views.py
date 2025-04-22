@@ -337,29 +337,24 @@ def camera_list(request):
     cameras = Camera.objects.all()
     return render(request, "reconocimiento/camera_list.html", {"cameras": cameras})
 
-@csrf_exempt  
+@csrf_exempt
 @require_POST
 def register_and_set_default_camera(request):
     data = json.loads(request.body)
     mac = data.get('mac')
     ip = data.get('ip')
-    name = data.get('name') or 'Cámara Detectada'
-    location = data.get('location') or 'Desconocido'
-
-    camera = Camera.objects.create(
-        name=name,
-        location=location,
-        mac_address=mac,
-        ip_address=ip,
-        active=True
-    )
-    camera.is_default = True
-    camera.save()
+    name = data.get('name')
+    location = data.get('location')
     
-    return JsonResponse({
-        "message": f"Cámara {camera.name} registrada y marcada como predeterminada.",
-        "camera_id": camera.id
-    })
+    try:
+        camera = Camera.objects.get(mac_address=mac)
+        user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+        user_profile.cameras.add(camera)
+        
+        return JsonResponse({"message": "Cámara registrada y establecida como predeterminada", "camera_id": camera.id})
+    except Camera.DoesNotExist:
+        return JsonResponse({"error": "Cámara no encontrada"}, status=404)
+
 
 @csrf_exempt  
 @require_POST

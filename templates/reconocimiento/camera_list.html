@@ -9,11 +9,11 @@
   <!-- Campo para ingresar la IP -->
   <div class="form-group">
     <label for="ip-input">Ingrese la IP para buscar cámaras:</label>
-    <input type="text" id="ip-input" class="form-control" placeholder="Ej. 192.168.1.10" value="TU ip aca " />
+    <input type="text" id="user-ip" placeholder="Tu IP local (ej: 192.100.0.10)">
   </div>
 
   <!-- Botón para iniciar la detección -->
-  <button onclick="startDetection()" class="btn btn-primary">Iniciar detección</button>
+  <button onclick="scanNetwork()">Buscar cámaras</button>
 
   <!-- Resultado de las cámaras detectadas -->
   <div class="row mt-3" id="camera-results"></div>

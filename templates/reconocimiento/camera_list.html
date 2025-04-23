@@ -27,7 +27,7 @@
             ips.push(baseIp.split('.').slice(0,3).join('.') + '.' + i);
         }
     
-        fetch('/detect_cameras', {
+        fetch('reconocimiento/detect_cameras/', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ips})

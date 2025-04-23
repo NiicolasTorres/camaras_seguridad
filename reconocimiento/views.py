@@ -73,6 +73,7 @@ def home(request):
     return render(request, 'home.html', {'cameras': cameras})
 
 
+
 def proxy_camera(request, camera_ip):
     if not camera_ip:
         return HttpResponseNotFound("IP no proporcionada")
@@ -302,33 +303,38 @@ def camera_list(request):
     return render(request, "reconocimiento/camera_list.html", {"cameras": cameras})
 
 @csrf_exempt
+@require_POST
 def register_and_set_default_camera(request):
-    if request.method == 'POST':
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Usuario no autenticado"}, status=401)
+
+    try:
         data = json.loads(request.body)
         ip = data.get('ip')
-        mac = data.get('mac', '')
-        name = data.get('name', 'Cámara')
-        location = data.get('location', 'No especificada')
+        mac = data.get('mac')
+        name = data.get('name')
+        location = data.get('location', 'Ubicación desconocida')
 
-        camera, created = Camera.objects.get_or_create(
-            ip_address=ip,
-            defaults={'mac_address': mac, 'name': name, 'location': location}
-        )
+        if not ip or not name:
+            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
 
-        if not created:
-            if not camera.name:
-                camera.name = name
-            if not camera.location:
-                camera.location = location
-            if not camera.mac_address and mac:
-                camera.mac_address = mac
-            camera.save()
+        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={
+            'mac_address': mac,
+            'name': name,
+            'location': location
+        })
 
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_profile.cameras.add(camera)
-        return JsonResponse({"message": f"Cámara registrada y asociada: {camera.name}"})
-    else:
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+        return JsonResponse({
+            "message": f"Cámara {'registrada' if created else 'ya existente'} y asociada correctamente.",
+            "camera_id": camera.id
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
 
 @csrf_exempt  
 @require_POST

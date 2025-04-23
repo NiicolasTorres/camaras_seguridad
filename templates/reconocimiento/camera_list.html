@@ -19,96 +19,48 @@
   <div class="row mt-3" id="camera-results"></div>
 
   <script>
-    function startDetection() {
-      const ip = document.getElementById('ip-input').value;
-
-      if (!ip) {
-        alert('Por favor ingrese una IP');
-        return;
-      }
-
-      const statusMessage = document.getElementById('status-message');
-      statusMessage.innerHTML = 'Detectando cámaras...';
-
-      fetch('{% url "detect_cameras" %}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}'
-        },
-        credentials: 'same-origin',
-        body: JSON.stringify({ ips: [ip] })
-      })
-      .then(response => {
-        if (!response.ok) throw new Error(`HTTP status ${response.status}`);
-        return response.json();
-      })
-      .then(data => {
-        const cameras = data.cameras;
-        const cameraResultsDiv = document.getElementById('camera-results');
-        cameraResultsDiv.innerHTML = '';
-
-        cameras.forEach(camera => {
-          const cardHTML = `
-            <div class="col-md-4 mt-3">
-              <div class="card">
-                <img src="/proxy_camera/${camera.ip}/" class="card-img-top" alt="${camera.name}">
-                <div class="card-body">
-                  <h5 class="card-title">${camera.name}</h5>
-                  <p class="card-text">Ubicación: ${camera.location}</p>
-                  <p class="card-text">IP: ${camera.ip}</p>
-                  <button class="btn btn-success" onclick='setDefaultCamera(${JSON.stringify(camera)})'>
-                    ${camera.registered ? 'Usar como predeterminada' : 'Registrar y usar'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          `;
-          cameraResultsDiv.insertAdjacentHTML('beforeend', cardHTML);
+    function scanNetwork() {
+        const baseIp = document.getElementById("user-ip").value;
+        let ips = [];
+    
+        for (let i = 1; i < 255; i++) {
+            ips.push(baseIp.split('.').slice(0,3).join('.') + '.' + i);
+        }
+    
+        fetch('/detect_cameras', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ips})
+        })
+        .then(res => res.json())
+        .then(data => {
+            const cameras = data.cameras;
+            const container = document.getElementById('camera-list');
+            container.innerHTML = '';
+    
+            cameras.forEach(cam => {
+                let div = document.createElement('div');
+                div.innerHTML = `
+                    <p>${cam.name} (${cam.ip})</p>
+                    <video src="${cam.url}" autoplay width="200"></video>
+                    <button onclick="selectCamera('${cam.ip}', '${cam.mac}', '${cam.name}')">Seleccionar</button>
+                    <hr/>
+                `;
+                container.appendChild(div);
+            });
         });
-
-        statusMessage.innerHTML = 'Cámaras detectadas:';
-      })
-      .catch(error => {
-        console.error('Error al detectar cámaras:', error);
-        statusMessage.innerHTML = 'Error al detectar cámaras.';
-      });
     }
-
-    function setDefaultCamera(camera) {
-      const headers = {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': '{{ csrf_token }}'
-      };
-
-      let url;
-      const options = { method: 'POST', headers, credentials: 'same-origin' };
-
-      if (camera.registered) {
-        url = `/set_default_camera/${camera.id}/`;
-      } else {
-        url = '{% url "register_and_set_default_camera" %}';
-        options.body = JSON.stringify({
-          mac: camera.mac,
-          ip: camera.ip,
-          name: camera.name,
-          location: camera.location
-        });
-      }
-
-      fetch(url, options)
-      .then(response => {
-        if (!response.ok) throw new Error(`HTTP status ${response.status}`);
-        return response.json();
-      })
-      .then(data => {
-        alert(data.message);
-      })
-      .catch(err => {
-        console.error('Error al establecer cámara predeterminada:', err);
-      });
+    
+    function selectCamera(ip, mac, name) {
+        fetch('/register_and_set_default_camera', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ip, mac, name, location: 'Asignada por usuario'})
+        })
+        .then(res => res.json())
+        .then(data => alert(data.message));
     }
-  </script>
+    </script>
 
   <!-- Mensaje de estado -->
   <div id="status-message" class="alert alert-info">

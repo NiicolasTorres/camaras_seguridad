@@ -355,20 +355,35 @@ def camera_list(request):
 @csrf_exempt
 @require_POST
 def register_and_set_default_camera(request):
-    data = json.loads(request.body)
-    mac = data.get('mac')
-    ip = data.get('ip')
-    name = data.get('name')
-    location = data.get('location')
-    
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Usuario no autenticado"}, status=401)
+
     try:
-        camera = Camera.objects.get(mac_address=mac)
-        user_profile, created = UserProfile.objects.get_or_create(user=request.user)
+        data = json.loads(request.body)
+        ip = data.get('ip')
+        mac = data.get('mac')
+        name = data.get('name')
+        location = data.get('location', 'Ubicación desconocida')
+
+        if not ip or not name:
+            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
+
+        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={
+            'mac_address': mac,
+            'name': name,
+            'location': location
+        })
+
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_profile.cameras.add(camera)
-        
-        return JsonResponse({"message": "Cámara registrada y establecida como predeterminada", "camera_id": camera.id})
-    except Camera.DoesNotExist:
-        return JsonResponse({"error": "Cámara no encontrada"}, status=404)
+
+        return JsonResponse({
+            "message": f"Cámara {'registrada' if created else 'ya existente'} y asociada correctamente.",
+            "camera_id": camera.id
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 @csrf_exempt  

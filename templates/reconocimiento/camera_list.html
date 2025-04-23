@@ -19,40 +19,37 @@
   <div class="row mt-3" id="camera-results"></div>
 
   <script>
-function scanNetwork() {
-    const baseIp = document.getElementById("user-ip").value;
-    let prefix = baseIp.split('.').slice(0, 3).join('.');
-    let container = document.getElementById('camera-results');
-    container.innerHTML = '';
-
-    for (let i = 1; i < 255; i++) {
-        let ip = `${prefix}.${i}`;
-        let videoUrl = `http://${ip}:8080/video`;
-
-        // Se prueba a cargar el video en un <video>, sin saber si va a funcionar (no-cors)
-        let video = document.createElement('video');
-        video.src = videoUrl;
-        video.autoplay = true;
-        video.muted = true; // algunos navegadores bloquean autoplay sin muted
-        video.width = 200;
-        video.onerror = () => {
-            // si falla, no se muestra nada
-        };
-        video.onloadeddata = () => {
-            let div = document.createElement('div');
-            div.innerHTML = `
-                <p>Posible cámara en ${ip}</p>
-                <button onclick="selectCamera('${ip}', '', 'Cámara detectada')">Seleccionar</button>
-                <hr/>
-            `;
-            div.appendChild(video);
-            container.appendChild(div);
-        };
-
-        // aunque no se haya cargado aún, lo insertamos para que empiece a probar
-        container.appendChild(video);
+    function scanNetwork() {
+        const baseIp = document.getElementById("user-ip").value;
+        let ips = [];
+    
+        for (let i = 1; i < 255; i++) {
+            ips.push(baseIp.split('.').slice(0,3).join('.') + '.' + i);
+        }
+    
+        fetch('/cameras/reconocimiento/detect_cameras/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ips})
+        })
+        .then(res => res.json())
+        .then(data => {
+            const cameras = data.cameras;
+            const container = document.getElementById('camera-results');
+            container.innerHTML = '';
+    
+            cameras.forEach(cam => {
+                let div = document.createElement('div');
+                div.innerHTML = `
+                    <p>${cam.name} (${cam.ip})</p>
+                    <video src="${cam.url}" autoplay width="200"></video>
+                    <button onclick="selectCamera('${cam.ip}', '${cam.mac}', '${cam.name}')">Seleccionar</button>
+                    <hr/>
+                `;
+                container.appendChild(div);
+            });
+        });
     }
-}
     
     function selectCamera(ip, mac, name) {
         fetch('/register_and_set_default_camera', {

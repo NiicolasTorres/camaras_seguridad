@@ -9,7 +9,7 @@
 
   <!-- IP input -->
   <div class="form-group mb-3">
-    <label for="ip-input">Ingrese tu IP local:</label>
+    <label for="ip-input">Ingrese la IP local:</label>
     <input type="text" class="form-control" id="user-ip" placeholder="Ej: 192.168.1.5">
   </div>
 
@@ -24,48 +24,11 @@
   <div class="row mt-3" id="camera-results"></div>
 
   <script>
-    // Función para validar si una IP es válida (No debe ser .local)
     function isValidIP(ip) {
       const regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-      return regex.test(ip) && !ip.includes('.local');
+      return regex.test(ip);
     }
 
-    // Obtener IPs locales usando RTCPeerConnection
-    async function getLocalIPs() {
-      const ips = new Set();
-      const pc = new RTCPeerConnection({iceServers:[]});
-      pc.createDataChannel('');
-      pc.onicecandidate = e => {
-        if (!e.candidate) {
-          pc.close();
-          return;
-        }
-        const parts = e.candidate.candidate.split(' ');
-        const addr = parts[4];
-        if (addr.includes('.')) ips.add(addr);
-      };
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await new Promise(r => setTimeout(r, 500));
-      return Array.from(ips).map(ip => ip.split('.').slice(0,3).join('.'));
-    }
-
-    function getCookie(name) {
-      let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-          const cookie = cookies[i].trim();
-          if (cookie.substring(0, name.length + 1) === (name + '=')) {
-            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-            break;
-          }
-        }
-      }
-      return cookieValue;
-    }
-    const csrftoken = getCookie('csrftoken');
-  
     // Función para escanear la red local en busca de cámaras
     async function scanNetwork() {
       const status = document.getElementById("status-message");
@@ -74,7 +37,7 @@
       const manual = document.getElementById('user-ip').value.trim();
 
       // Validamos si la IP ingresada es válida
-      if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(manual)) {
+      if (!isValidIP(manual)) {
         status.className = 'alert alert-danger';
         status.innerText = '❌ IP inválida';
         return;
@@ -86,7 +49,7 @@
 
       try {
         // Llamamos al backend para escanear cámaras en la IP pública
-        const res = await fetch(`/scan-cameras/?base=${manual}`);  // Cambia esto a la IP pública si es necesario
+        const res = await fetch(`/scan-cameras/?base=${manual}`);
         const cams = await res.json();
 
         if (!cams.length) {
@@ -105,8 +68,7 @@
             <div class="card p-3">
               <h5>${name}</h5>
               <p>${ip}:${port}</p>
-              <a href="http://${ip}:${port}/video" target="_blank" class="btn btn-info btn-sm">Ver</a>
-              <button class="btn btn-success btn-sm mt-2" onclick="selectCamera('${ip}:${port}', '', '${name}')">✅ Seleccionar</button>
+              <button class="btn btn-success btn-sm mt-2" onclick="selectCamera('${ip}:${port}', '${name}')">✅ Seleccionar como predeterminada</button>
             </div>`;
           container.appendChild(div);
         });
@@ -117,44 +79,12 @@
       }
     }
 
-    // Función para probar si una IP tiene una cámara activa
-    async function testCamera(ip) {
-      const ports = [80, 8080, 8000, 554];
-      const paths = ['', '/video', '/snapshot.jpg', '/favicon.ico'];
-      for (let port of ports) {
-        const tests = paths.map(path => {
-          const url = `http://${ip}:${port}${path}`;
-          console.log(`Probando: ${url}`);
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 400);
-          return fetch(url, {
-            method: 'HEAD',
-            mode: 'no-cors',          
-            signal: controller.signal
-          })
-          .then(res => {
-            clearTimeout(timeout);
-            console.log(`Respuesta recibida de ${url}`);
-            return { ip, found: true, port };
-          })
-          .catch(_=> {
-            console.log(`Error al contactar ${url}`);
-            return null;
-          });
-        });
-        const result = await Promise.race(tests);
-        if (result) return result;
-      }
-      return { ip, found: false };
-    }
-
-
-    // Función para seleccionar una cámara
-    function selectCamera(ip, mac, name) {
+    // Función para seleccionar una cámara como predeterminada
+    function selectCamera(ip, name) {
       fetch('/register_and_set_default_camera', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip, mac, name, location: 'Asignada por usuario' })
+        body: JSON.stringify({ ip, name })
       })
       .then(res => res.json())
       .then(data => {

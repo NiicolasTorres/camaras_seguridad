@@ -112,18 +112,12 @@ def register_and_set_default_camera(request):
     try:
         data = json.loads(request.body)
         ip = data.get('ip')
-        mac = data.get('mac')
         name = data.get('name')
-        location = data.get('location', 'Ubicación desconocida')
 
         if not ip or not name:
             return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
 
-        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={
-            'mac_address': mac,
-            'name': name,
-            'location': location
-        })
+        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={'name': name})
 
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_profile.cameras.add(camera)

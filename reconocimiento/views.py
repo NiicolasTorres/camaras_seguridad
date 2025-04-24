@@ -33,9 +33,7 @@ import csv
 from django.http import HttpResponse
 import scapy.all as scapy
 from django.http import HttpResponseNotFound
-from django.views.decorators.http import require_GET
-from .scanner import get_discovered_cams
-from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 def manifest(request):
     return JsonResponse({
@@ -75,49 +73,6 @@ def home(request):
 
     return render(request, 'home.html', {'cameras': cameras})
 
-def socket_scan(base):
-    ports = [80, 8080, 8000, 554]
-    timeout = 0.2
-    ips = [f"{base}.{i}" for i in range(1, 255)]
-    found = []
-
-    def scan_one(ip):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(timeout)
-        try:
-            for port in ports:
-                try:
-                    s.connect((ip, port))
-                    return {'name': f'{ip}:{port}', 'ip': ip, 'port': port}
-                except:
-                    continue
-        finally:
-            s.close()
-        return None
-
-    # Lanza hasta 50 hilos simultáneos
-    with ThreadPoolExecutor(max_workers=50) as executor:
-        futures = [executor.submit(scan_one, ip) for ip in ips]
-        for fut in as_completed(futures, timeout=10):  
-            res = fut.result()
-            if res:
-                found.append(res)
-
-    return found
-
-@require_GET
-def scan_cameras(request):
-    base = request.GET.get('base')
-    if base:
-        parts = base.split('.')
-        if len(parts)==3 and all(p.isdigit() and 0<=int(p)<256 for p in parts):
-            cams = socket_scan(base)
-            return JsonResponse(cams, safe=False)
-        return JsonResponse({'error':'base inválida'}, status=400)
-
-    # fallback mDNS
-    cams = get_discovered_cams()
-    return JsonResponse(cams, safe=False)
 
 @csrf_exempt
 def proxy_camera(request, camera_ip):

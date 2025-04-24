@@ -45,14 +45,22 @@
           body: JSON.stringify({ ip })
         });
 
-        const data = await res.json();
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const data = await res.json();
 
-        if (res.ok) {
-          status.className = 'alert alert-success';
-          status.innerText = `✅ ${data.message}`;
+          if (res.ok) {
+            status.className = 'alert alert-success';
+            status.innerText = `✅ ${data.message}`;
+          } else {
+            status.className = 'alert alert-warning';
+            status.innerText = `⚠️ ${data.error}`;
+          }
         } else {
-          status.className = 'alert alert-warning';
-          status.innerText = `⚠️ ${data.error}`;
+          const text = await res.text();
+          console.error("Respuesta no JSON:", text);
+          status.className = 'alert alert-danger';
+          status.innerText = '❌ Error inesperado: respuesta no válida.';
         }
       } catch (err) {
         console.error(err);

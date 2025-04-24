@@ -125,6 +125,7 @@
       for (let port of ports) {
         const tests = paths.map(path => {
           const url = `http://${ip}:${port}${path}`;
+          console.log(`Probando: ${url}`);
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 400);
           return fetch(url, {
@@ -134,15 +135,20 @@
           })
           .then(res => {
             clearTimeout(timeout);
+            console.log(`Respuesta recibida de ${url}`);
             return { ip, found: true, port };
           })
-          .catch(_=> null);
+          .catch(_=> {
+            console.log(`Error al contactar ${url}`);
+            return null;
+          });
         });
         const result = await Promise.race(tests);
         if (result) return result;
       }
       return { ip, found: false };
     }
+
 
     // Función para seleccionar una cámara
     function selectCamera(ip, mac, name) {

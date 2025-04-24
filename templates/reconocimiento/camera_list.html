@@ -120,7 +120,7 @@ async function testCamera(ip) {
       const timeout = setTimeout(() => controller.abort(), 400);
       return fetch(url, {
         method: 'HEAD',
-        mode: 'no-cors',          
+        mode: 'cors',          
         signal: controller.signal
       })
       .then(res => {

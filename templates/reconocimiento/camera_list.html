@@ -23,6 +23,23 @@
   <div class="row mt-3" id="camera-results"></div>
 
   <script>
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  const csrftoken = getCookie('csrftoken');
+  
     function scanNetwork() {
       const baseIp = document.getElementById("user-ip").value;
       const status = document.getElementById("status-message");
@@ -42,7 +59,10 @@
 
       fetch('/cameras/reconocimiento/detect_cameras/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrftoken  
+        },
         body: JSON.stringify({ ips })
       })
       .then(res => res.json())

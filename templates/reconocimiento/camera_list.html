@@ -86,7 +86,7 @@ function getCookie(name) {
 
 function testCamera(ip) {
   return new Promise((resolve) => {
-    fetch(`http://${ip}:8080/video`) 
+    fetch(`https://${ip}:8080/video`) 
       .then(response => {
         if (response.ok) {
           resolve({ ip, found: true });

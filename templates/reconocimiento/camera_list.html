@@ -6,64 +6,93 @@
 {% block content %}
   <h2 class="mt-4">Lista de Cámaras</h2>
 
-  <!-- Campo para ingresar la IP -->
-  <div class="form-group">
-    <label for="ip-input">Ingrese la IP para buscar cámaras:</label>
-    <input type="text" id="user-ip" placeholder="Tu IP local (ej: 192.100.0.10)">
+  <!-- IP input -->
+  <div class="form-group mb-3">
+    <label for="ip-input">Ingrese tu IP local:</label>
+    <input type="text" class="form-control" id="user-ip" placeholder="Ej: 192.168.1.5">
   </div>
 
-  <!-- Botón para iniciar la detección -->
-  <button onclick="scanNetwork()">Buscar cámaras</button>
+  <button class="btn btn-primary" onclick="scanNetwork()">🔍 Buscar cámaras</button>
 
-  <!-- Resultado de las cámaras detectadas -->
+  <!-- Status -->
+  <div id="status-message" class="alert alert-info mt-3">
+    Esperando para detectar cámaras...
+  </div>
+
+  <!-- Resultados -->
   <div class="row mt-3" id="camera-results"></div>
 
   <script>
     function scanNetwork() {
-        const baseIp = document.getElementById("user-ip").value;
-        let ips = [];
-    
-        for (let i = 1; i < 255; i++) {
-            ips.push(baseIp.split('.').slice(0,3).join('.') + '.' + i);
-        }
-    
-        fetch('/cameras/reconocimiento/detect_cameras/', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ips})
-        })
-        .then(res => res.json())
-        .then(data => {
-            const cameras = data.cameras;
-            const container = document.getElementById('camera-results');
-            container.innerHTML = '';
-    
-            cameras.forEach(cam => {
-                let div = document.createElement('div');
-                div.innerHTML = `
-                    <p>${cam.name} (${cam.ip})</p>
-                    <video src="${cam.url}" autoplay width="200"></video>
-                    <button onclick="selectCamera('${cam.ip}', '${cam.mac}', '${cam.name}')">Seleccionar</button>
-                    <hr/>
-                `;
-                container.appendChild(div);
-            });
-        });
-    }
-    
-    function selectCamera(ip, mac, name) {
-        fetch('/register_and_set_default_camera', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ip, mac, name, location: 'Asignada por usuario'})
-        })
-        .then(res => res.json())
-        .then(data => alert(data.message));
-    }
-    </script>
+      const baseIp = document.getElementById("user-ip").value;
+      const status = document.getElementById("status-message");
+      const container = document.getElementById("camera-results");
 
-  <!-- Mensaje de estado -->
-  <div id="status-message" class="alert alert-info">
-    Esperando para detectar cámaras...
-  </div>
+      if (!baseIp) {
+        status.innerText = "Por favor, ingresá tu IP local.";
+        return;
+      }
+
+      status.innerText = "🔍 Buscando cámaras en la red...";
+
+      let ips = [];
+      for (let i = 1; i < 255; i++) {
+        ips.push(baseIp.split('.').slice(0, 3).join('.') + '.' + i);
+      }
+
+      fetch('/cameras/reconocimiento/detect_cameras/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ips })
+      })
+      .then(res => res.json())
+      .then(data => {
+        container.innerHTML = '';
+        const cameras = data.cameras;
+
+        if (cameras.length === 0) {
+          status.innerText = "No se encontraron cámaras.";
+        } else {
+          status.innerText = `${cameras.length} cámaras detectadas.`;
+        }
+
+        cameras.forEach(cam => {
+          const div = document.createElement('div');
+          div.className = "col-md-4 mb-4";
+
+          div.innerHTML = `
+            <div class="card p-3">
+              <h5>${cam.name}</h5>
+              <p><strong>IP:</strong> ${cam.ip}</p>
+              ${cam.mac ? `<p><strong>MAC:</strong> ${cam.mac}</p>` : ''}
+              <video src="${cam.url}" autoplay muted playsinline width="100%" class="mb-2"></video>
+              <button class="btn btn-success btn-sm" onclick="selectCamera('${cam.ip}', '${cam.mac}', '${cam.name}')">✅ Seleccionar</button>
+            </div>
+          `;
+
+          container.appendChild(div);
+        });
+      })
+      .catch(err => {
+        status.innerText = "❌ Error al detectar cámaras.";
+        console.error(err);
+      });
+    }
+
+    function selectCamera(ip, mac, name) {
+      fetch('/register_and_set_default_camera', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip, mac, name, location: 'Asignada por usuario' })
+      })
+      .then(res => res.json())
+      .then(data => {
+        alert(data.message);
+      })
+      .catch(err => {
+        alert("❌ Error al registrar la cámara.");
+        console.error(err);
+      });
+    }
+  </script>
 {% endblock %}

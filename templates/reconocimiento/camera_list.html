@@ -89,9 +89,10 @@ function testCamera(ip) {
     const img = new Image();
     img.onload = () => resolve({ ip, found: true });
     img.onerror = () => resolve({ ip, found: false });
-    img.src = `https://${ip}:8080/favicon.ico?${Date.now()}`; 
+    img.src = `http://${ip}:8080/favicon.ico?${Date.now()}`; // <- HTTP, no HTTPS
   });
 }
+
 
     function selectCamera(ip, mac, name) {
       fetch('/register_and_set_default_camera', {

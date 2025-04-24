@@ -74,9 +74,35 @@ def home(request):
 
     return render(request, 'home.html', {'cameras': cameras})
 
+def socket_scan(base):
+    found = []
+    ports = [80, 8080, 8000, 554]
+    timeout = 0.2
+    for i in range(1, 255):
+        ip = f"{base}.{i}"
+        for port in ports:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout)
+            try:
+                sock.connect((ip, port))
+                found.append({'name': f'{ip}:{port}', 'ip': ip, 'port': port})
+                break
+            except:
+                pass
+            finally:
+                sock.close()
+    return found
+
 @require_GET
 def scan_cameras(request):
-
+    base = request.GET.get('base')
+    if base:
+        parts = base.split('.')
+        if len(parts)==3 and all(p.isdigit() and 0<=int(p)<256 for p in parts):
+            cams = socket_scan(base)
+            return JsonResponse(cams, safe=False)
+        else:
+            return JsonResponse({'error':'base inválida'}, status=400)
     cams = get_discovered_cams()
     return JsonResponse(cams, safe=False)
 

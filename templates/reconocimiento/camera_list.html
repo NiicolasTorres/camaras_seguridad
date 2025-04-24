@@ -90,7 +90,8 @@ function testCamera(ip) {
     const img = new Image();
     img.onload = () => resolve({ ip, found: true });
     const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    img.src = `${protocol}://${ip}:8080/favicon.ico?${Date.now()}`;
+    img.src = `/proxy-camera/${ip}/`;
+
 
   });
 }

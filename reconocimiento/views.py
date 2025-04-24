@@ -103,8 +103,6 @@ def set_default_camera(request, camera_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
-@require_POST
 def register_and_set_default_camera(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Usuario no autenticado"}, status=401)
@@ -112,13 +110,14 @@ def register_and_set_default_camera(request):
     try:
         data = json.loads(request.body)
         ip = data.get('ip')
-        name = data.get('name')
 
-        if not ip or not name:
-            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
+        if not ip:
+            return JsonResponse({"error": "IP faltante"}, status=400)
 
-        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={'name': name})
+        # Buscar o crear la cámara
+        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={'name': 'Cámara predeterminada'})
 
+        # Asociar la cámara al usuario
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_profile.cameras.add(camera)
 

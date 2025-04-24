@@ -4,24 +4,20 @@
 {% block title %}Lista de Cámaras{% endblock %}
 
 {% block content %}
-
-  <h2 class="mt-4">Lista de Cámaras</h2>
+  <h2 class="mt-4">Seleccionar Cámara Predeterminada</h2>
 
   <!-- IP input -->
   <div class="form-group mb-3">
-    <label for="ip-input">Ingrese la IP local:</label>
+    <label for="ip-input">Ingrese la IP local de la cámara:</label>
     <input type="text" class="form-control" id="user-ip" placeholder="Ej: 192.168.1.5">
   </div>
 
-  <button class="btn btn-primary" onclick="scanNetwork()">🔍 Buscar cámaras</button>
+  <button class="btn btn-primary" onclick="setDefaultCamera()">🔒 Establecer como predeterminada</button>
 
   <!-- Status -->
   <div id="status-message" class="alert alert-info mt-3">
-    Esperando para detectar cámaras...
+    Esperando para seleccionar cámara...
   </div>
-
-  <!-- Resultados -->
-  <div class="row mt-3" id="camera-results"></div>
 
   <script>
     function isValidIP(ip) {
@@ -29,71 +25,40 @@
       return regex.test(ip);
     }
 
-    // Función para escanear la red local en busca de cámaras
-    async function scanNetwork() {
+    async function setDefaultCamera() {
       const status = document.getElementById("status-message");
-      const container = document.getElementById("camera-results");
-      container.innerHTML = '';
-      const manual = document.getElementById('user-ip').value.trim();
+      const ip = document.getElementById('user-ip').value.trim();
 
-      // Validamos si la IP ingresada es válida
-      if (!isValidIP(manual)) {
+      if (!isValidIP(ip)) {
         status.className = 'alert alert-danger';
         status.innerText = '❌ IP inválida';
         return;
       }
 
-      const base = manual.split('.').slice(0,3).join('.'); 
       status.className = 'alert alert-info';
-      status.innerText = `🔍 Escaneando ${base}.0/24…`;
+      status.innerText = '🔒 Estableciendo cámara como predeterminada...';
 
       try {
-        // Llamamos al backend para escanear cámaras en la IP pública
-        const res = await fetch(`/scan-cameras/?base=${manual}`);
-        const cams = await res.json();
-
-        if (!cams.length) {
-          status.className = 'alert alert-warning';
-          status.innerText = '⚠️ No se encontraron cámaras.';
-          return;
-        }
-
-        status.className = 'alert alert-success';
-        status.innerText = `✅ ${cams.length} cámaras encontradas:`;
-
-        cams.forEach(({ name, ip, port }) => {
-          const div = document.createElement('div');
-          div.className = 'col-md-4 mb-4';
-          div.innerHTML = `
-            <div class="card p-3">
-              <h5>${name}</h5>
-              <p>${ip}:${port}</p>
-              <button class="btn btn-success btn-sm mt-2" onclick="selectCamera('${ip}:${port}', '${name}')">✅ Seleccionar como predeterminada</button>
-            </div>`;
-          container.appendChild(div);
+        const res = await fetch('/register_and_set_default_camera', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip })
         });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          status.className = 'alert alert-success';
+          status.innerText = `✅ ${data.message}`;
+        } else {
+          status.className = 'alert alert-warning';
+          status.innerText = `⚠️ ${data.error}`;
+        }
       } catch (err) {
         console.error(err);
         status.className = 'alert alert-danger';
-        status.innerText = '❌ Error al escanear la LAN.';
+        status.innerText = '❌ Error al registrar la cámara.';
       }
-    }
-
-    // Función para seleccionar una cámara como predeterminada
-    function selectCamera(ip, name) {
-      fetch('/register_and_set_default_camera', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip, name })
-      })
-      .then(res => res.json())
-      .then(data => {
-        alert(data.message);
-      })
-      .catch(err => {
-        alert("❌ Error al registrar la cámara.");
-        console.error(err);
-      });
     }
   </script>
 

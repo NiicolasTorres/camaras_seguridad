@@ -25,6 +25,26 @@
 
   <script>
 
+async function getLocalIPs() {
+  const ips = new Set();
+  const pc = new RTCPeerConnection({iceServers:[]});
+  pc.createDataChannel('');                                  
+  pc.onicecandidate = e => {
+    if (!e.candidate) {
+      pc.close();
+      return;
+    }
+    const parts = e.candidate.candidate.split(' ');
+    const addr = parts[4];
+    if (addr.includes('.')) ips.add(addr);
+  };
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+  await new Promise(r => setTimeout(r, 500));
+  return Array.from(ips).map(ip => ip.split('.').slice(0,3).join('.'));
+}
+
+
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -41,60 +61,80 @@ function getCookie(name) {
   }
   const csrftoken = getCookie('csrftoken');
   
-  function scanNetwork() {
-  const baseIp = document.getElementById("user-ip").value;
+  async function scanNetwork() {
   const status = document.getElementById("status-message");
   const container = document.getElementById("camera-results");
+  status.innerText = "🔍 Obteniendo tu IP local…";
 
-  if (!baseIp) {
-    status.innerText = "Por favor, ingresá tu IP local.";
+  const bases = await getLocalIPs();
+  if (!bases.length) {
+    status.innerText = "No se pudo determinar tu IP local. Ingresala manualmente.";
     return;
   }
+  status.innerText = `🔍 Escaneando la red (${bases[0]}.0/24)…`;
 
-  status.innerText = "🔍 Escaneando la red desde tu navegador...";
+  const base = bases[0];
+  const ips = Array.from({length:254}, (_,i)=>`${base}.${i+1}`);
+  const batchSize = 50;
+  let found = [];
 
-  let ips = [];
-  for (let i = 1; i < 255; i++) {
-    ips.push(baseIp.split('.').slice(0, 3).join('.') + '.' + i);
+  for (let i = 0; i < ips.length; i += batchSize) {
+    const batch = ips.slice(i, i + batchSize);
+    const results = await Promise.all(batch.map(ip => testCamera(ip)));
+    found = found.concat(results.filter(r => r.found));
+    status.innerText = `🔍 Escaneado ${Math.min(i+batchSize, ips.length)}/${ips.length} IPs…`;
   }
 
   container.innerHTML = '';
+  if (!found.length) {
+    status.innerText = "No se encontraron cámaras.";
+    return;
+  }
+  status.innerText = `${found.length} cámaras detectadas:`;
 
-  Promise.all(
-    ips.map(ip => testCamera(ip))
-  ).then(results => {
-    const found = results.filter(r => r.found);
-    if (found.length === 0) {
-      status.innerText = "No se encontraron cámaras.";
-    } else {
-      status.innerText = `${found.length} cámaras detectadas desde tu navegador.`;
-    }
+  found.forEach(cam => {
+    const div = document.createElement('div');
+    div.className = "col-md-4 mb-4";
+    div.innerHTML = `
+      <div class="card p-3">
+        <h5>Cámara en ${cam.ip}:${cam.port}</h5>
+        <a href="http://${cam.ip}:${cam.port}/video" target="_blank" class="btn btn-info btn-sm">▶️ Ver</a>
+        <button class="btn btn-success btn-sm mt-2"
+           onclick="selectCamera('${cam.ip}:${cam.port}', '', 'Detectada frontend')">
+          ✅ Seleccionar
+        </button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
 
-    found.forEach(cam => {
-      const div = document.createElement('div');
-      div.className = "col-md-4 mb-4";
-      div.innerHTML = `
-        <div class="card p-3">
-          <h5>Cámara en ${cam.ip}</h5>
-          <a href="http://${cam.ip}:8080/video" target="_blank" class="btn btn-info btn-sm">▶️ Ver cámara</a>
-          <button class="btn btn-success btn-sm mt-2" onclick="selectCamera('${cam.ip}', '', 'Detectada desde frontend')">✅ Seleccionar</button>
-        </div>
-      `;
-      container.appendChild(div);
+
+async function testCamera(ip) {
+  const ports = [80, 8080, 8000, 554];
+  const paths = ['', '/video', '/snapshot.jpg', '/favicon.ico'];
+  for (let port of ports) {
+    const tests = paths.map(path => {
+      const url = `http://${ip}:${port}${path}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 400);
+      return fetch(url, {
+        method: 'HEAD',
+        mode: 'no-cors',          
+        signal: controller.signal
+      })
+      .then(res => {
+        clearTimeout(timeout);
+        return { ip, found: true, port };
+      })
+      .catch(_=> null);
     });
-  });
+    const result = await Promise.race(tests);
+    if (result) return result;
+  }
+  return { ip, found: false };
 }
 
-function testCamera(ip) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve({ ip, found: true });
-    const protocol = window.location.protocol === 'https:' ? 'https' : 'http';
-    img.src = `/proxy-camera/${ip}/`;
-
-
-  });
-}
 
 
     function selectCamera(ip, mac, name) {

@@ -75,6 +75,7 @@ function getCookie(name) {
 
   const base = bases[0];
   const ips = Array.from({length:254}, (_,i)=>`${base}.${i+1}`);
+  console.log("IPs a escanear: ", ips);
   const batchSize = 50;
   let found = [];
 

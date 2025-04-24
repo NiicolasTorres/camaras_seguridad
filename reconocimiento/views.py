@@ -120,12 +120,16 @@ def register_and_set_default_camera(request):
         if not ip:
             return JsonResponse({"error": "IP faltante"}, status=400)
 
-        # Buscar o crear la cámara
+        print(f"Datos recibidos: {data}")
+
         camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={'name': 'Cámara predeterminada'})
 
-        # Asociar la cámara al usuario
+        print(f"Cámara encontrada/creada: {camera}")
+
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_profile.cameras.add(camera)
+
+        print(f"Cámaras asociadas al usuario: {user_profile.cameras.all()}")
 
         return JsonResponse({
             "message": f"Cámara {'registrada' if created else 'ya existente'} y asociada correctamente.",
@@ -133,7 +137,7 @@ def register_and_set_default_camera(request):
         })
 
     except Exception as e:
-        # Captura y muestra detalles del error para depuración
+        print(f"Error inesperado: {traceback.format_exc()}")
         return JsonResponse({
             "error": str(e),
             "trace": traceback.format_exc()

@@ -75,8 +75,9 @@ function getCookie(name) {
       div.innerHTML = `
         <div class="card p-3">
           <h5>Cámara en ${cam.ip}</h5>
-          <video src="http://${cam.ip}:8080/video" autoplay muted playsinline width="100%" class="mb-2"></video>
-          <button class="btn btn-success btn-sm" onclick="selectCamera('${cam.ip}', '', 'Detectada desde frontend')">✅ Seleccionar</button>
+          <p>📷 Detectada, pero no se puede mostrar en esta página HTTPS</p>
+          <a href="http://${cam.ip}:8080/video" target="_blank" class="btn btn-info btn-sm">▶️ Ver cámara</a>
+          <button class="btn btn-success btn-sm mt-2" onclick="selectCamera('${cam.ip}', '', 'Detectada desde frontend')">✅ Seleccionar</button>
         </div>
       `;
       container.appendChild(div);

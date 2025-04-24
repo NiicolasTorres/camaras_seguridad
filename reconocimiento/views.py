@@ -33,6 +33,7 @@ import csv
 from django.http import HttpResponse
 import scapy.all as scapy
 from django.http import HttpResponseNotFound
+import traceback
 
 
 def manifest(request):
@@ -108,7 +109,12 @@ def register_and_set_default_camera(request):
         return JsonResponse({"error": "Usuario no autenticado"}, status=401)
 
     try:
-        data = json.loads(request.body)
+        # Intentar cargar los datos JSON
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Error al procesar el JSON"}, status=400)
+
         ip = data.get('ip')
 
         if not ip:
@@ -127,7 +133,11 @@ def register_and_set_default_camera(request):
         })
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        # Captura y muestra detalles del error para depuración
+        return JsonResponse({
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }, status=500)
     
 
 def camera_list(request):

@@ -40,64 +40,58 @@ function getCookie(name) {
   }
   const csrftoken = getCookie('csrftoken');
   
-    function scanNetwork() {
-      const baseIp = document.getElementById("user-ip").value;
-      const status = document.getElementById("status-message");
-      const container = document.getElementById("camera-results");
+  function scanNetwork() {
+  const baseIp = document.getElementById("user-ip").value;
+  const status = document.getElementById("status-message");
+  const container = document.getElementById("camera-results");
 
-      if (!baseIp) {
-        status.innerText = "Por favor, ingresá tu IP local.";
-        return;
-      }
+  if (!baseIp) {
+    status.innerText = "Por favor, ingresá tu IP local.";
+    return;
+  }
 
-      status.innerText = "🔍 Buscando cámaras en la red...";
+  status.innerText = "🔍 Escaneando la red desde tu navegador...";
 
-      let ips = [];
-      for (let i = 1; i < 255; i++) {
-        ips.push(baseIp.split('.').slice(0, 3).join('.') + '.' + i);
-      }
+  let ips = [];
+  for (let i = 1; i < 255; i++) {
+    ips.push(baseIp.split('.').slice(0, 3).join('.') + '.' + i);
+  }
 
-      fetch('/cameras/reconocimiento/detect_cameras/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': csrftoken  
-        },
-        body: JSON.stringify({ ips })
-      })
-      .then(res => res.json())
-      .then(data => {
-        container.innerHTML = '';
-        const cameras = data.cameras;
+  container.innerHTML = '';
 
-        if (cameras.length === 0) {
-          status.innerText = "No se encontraron cámaras.";
-        } else {
-          status.innerText = `${cameras.length} cámaras detectadas.`;
-        }
-
-        cameras.forEach(cam => {
-          const div = document.createElement('div');
-          div.className = "col-md-4 mb-4";
-
-          div.innerHTML = `
-            <div class="card p-3">
-              <h5>${cam.name}</h5>
-              <p><strong>IP:</strong> ${cam.ip}</p>
-              ${cam.mac ? `<p><strong>MAC:</strong> ${cam.mac}</p>` : ''}
-              <video src="${cam.url}" autoplay muted playsinline width="100%" class="mb-2"></video>
-              <button class="btn btn-success btn-sm" onclick="selectCamera('${cam.ip}', '${cam.mac}', '${cam.name}')">✅ Seleccionar</button>
-            </div>
-          `;
-
-          container.appendChild(div);
-        });
-      })
-      .catch(err => {
-        status.innerText = "❌ Error al detectar cámaras.";
-        console.error(err);
-      });
+  Promise.all(
+    ips.map(ip => testCamera(ip))
+  ).then(results => {
+    const found = results.filter(r => r.found);
+    if (found.length === 0) {
+      status.innerText = "No se encontraron cámaras.";
+    } else {
+      status.innerText = `${found.length} cámaras detectadas desde tu navegador.`;
     }
+
+    found.forEach(cam => {
+      const div = document.createElement('div');
+      div.className = "col-md-4 mb-4";
+      div.innerHTML = `
+        <div class="card p-3">
+          <h5>Cámara en ${cam.ip}</h5>
+          <video src="http://${cam.ip}:8080/video" autoplay muted playsinline width="100%" class="mb-2"></video>
+          <button class="btn btn-success btn-sm" onclick="selectCamera('${cam.ip}', '', 'Detectada desde frontend')">✅ Seleccionar</button>
+        </div>
+      `;
+      container.appendChild(div);
+    });
+  });
+}
+
+function testCamera(ip) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ ip, found: true });
+    img.onerror = () => resolve({ ip, found: false });
+    img.src = `http://${ip}:8080/shot.jpg?cacheBust=` + new Date().getTime();
+  });
+}
 
     function selectCamera(ip, mac, name) {
       fetch('/register_and_set_default_camera', {

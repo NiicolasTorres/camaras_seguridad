@@ -72,56 +72,6 @@ def home(request):
 
     return render(request, 'home.html', {'cameras': cameras})
 
-def detect_cameras(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Método no permitido'}, status=405)
-
-    payload = json.loads(request.body)
-    ips = payload.get('ips', [])
-    
-    print("IPs recibidas:", ips)  
-
-    result = []
-    for ip in ips:
-        cam = Camera.objects.filter(ip_address=ip).first()
-        
-        if cam:
-            url = f'http://{cam.ip_address}:8080/video'
-            result.append({
-                'id': cam.id,
-                'name': cam.name,
-                'location': cam.location,
-                'mac': cam.mac_address,
-                'ip': cam.ip_address,
-                'url': url,
-                'registered': True
-            })
-        else:
-            try:
-                response = requests.get(f'http://{ip}:8080/video', timeout=5)
-                if response.status_code == 200:
-                    result.append({
-                        'id': None,
-                        'name': 'Cámara no registrada',
-                        'location': 'Desconocido',
-                        'mac': None,
-                        'ip': ip,
-                        'url': f'http://{ip}:8080/video',
-                        'registered': False
-                    })
-            except requests.exceptions.RequestException:
-                result.append({
-                    'id': None,
-                    'name': 'Cámara no encontrada',
-                    'location': 'Desconocido',
-                    'mac': None,
-                    'ip': ip,
-                    'url': f'http://{ip}:8080/video',
-                    'registered': False
-                })
-
-    return JsonResponse({'cameras': result})
-
 
 
 def proxy_camera(request, camera_ip):
@@ -148,22 +98,45 @@ def set_default_camera(request, camera_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-def camera_feed(request, camera_id):
-    camera = get_object_or_404(Camera, id=camera_id)
-    camera_ip = camera.ip_address
+@csrf_exempt
+@require_POST
+def register_and_set_default_camera(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Usuario no autenticado"}, status=401)
 
-    if camera_ip not in stream_threads:
-        stream_threads[camera_ip] = VideoStream(camera_ip)
-        stream_threads[camera_ip].start()
+    try:
+        data = json.loads(request.body)
+        ip = data.get('ip')
+        mac = data.get('mac')
+        name = data.get('name')
+        location = data.get('location', 'Ubicación desconocida')
 
-    def generate():
-        while True:
-            frame = stream_threads[camera_ip].get_frame()
-            if frame:
-                yield (b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-            time.sleep(0.03)
+        if not ip or not name:
+            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
 
-    return StreamingHttpResponse(generate(), content_type='multipart/x-mixed-replace; boundary=frame')
+        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={
+            'mac_address': mac,
+            'name': name,
+            'location': location
+        })
+
+        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_profile.cameras.add(camera)
+
+        return JsonResponse({
+            "message": f"Cámara {'registrada' if created else 'ya existente'} y asociada correctamente.",
+            "camera_id": camera.id
+        })
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+    
+
+def camera_list(request):
+    cameras = Camera.objects.all()
+    return render(request, "reconocimiento/camera_list.html", {"cameras": cameras})
+
+
 
 MEDIA_FACE_PATH = "media/faces/"
 
@@ -333,6 +306,7 @@ def camera_feed(request, camera_id):
     return StreamingHttpResponse(generate(), content_type='multipart/x-mixed-replace; boundary=frame')
 
 
+
 def stop_camera_feed(camera_ip):
     if camera_ip in stream_threads:
         stream_threads[camera_ip].stop()
@@ -347,43 +321,6 @@ def camera_feed_template(request, camera_id):
     except Camera.DoesNotExist:
         return JsonResponse({"error": "No se encontró la cámara."}, status=404)
 
-
-def camera_list(request):
-    cameras = Camera.objects.all()
-    return render(request, "reconocimiento/camera_list.html", {"cameras": cameras})
-
-@csrf_exempt
-@require_POST
-def register_and_set_default_camera(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Usuario no autenticado"}, status=401)
-
-    try:
-        data = json.loads(request.body)
-        ip = data.get('ip')
-        mac = data.get('mac')
-        name = data.get('name')
-        location = data.get('location', 'Ubicación desconocida')
-
-        if not ip or not name:
-            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
-
-        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={
-            'mac_address': mac,
-            'name': name,
-            'location': location
-        })
-
-        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        user_profile.cameras.add(camera)
-
-        return JsonResponse({
-            "message": f"Cámara {'registrada' if created else 'ya existente'} y asociada correctamente.",
-            "camera_id": camera.id
-        })
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
 
 
 @csrf_exempt  

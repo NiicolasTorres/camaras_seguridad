@@ -24,11 +24,13 @@
   <div class="row mt-3" id="camera-results"></div>
 
   <script>
+    // Función para validar si una IP es válida (No debe ser .local)
     function isValidIP(ip) {
       const regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-      return regex.test(ip);
+      return regex.test(ip) && !ip.includes('.local');
     }
 
+    // Obtener IPs locales usando RTCPeerConnection
     async function getLocalIPs() {
       const ips = new Set();
       const pc = new RTCPeerConnection({iceServers:[]});
@@ -64,13 +66,14 @@
     }
     const csrftoken = getCookie('csrftoken');
   
+    // Función para escanear la red local en busca de cámaras
     async function scanNetwork() {
       const status = document.getElementById("status-message");
       const container = document.getElementById("camera-results");
       status.innerText = "🔍 Obteniendo tu IP local…";
 
       const bases = await getLocalIPs();
-      console.log("IPs locales detectadas: ", bases);  
+      console.log("IPs locales detectadas: ", bases); 
       if (!bases.length) {
         status.innerText = "No se pudo determinar tu IP local. Ingresala manualmente.";
         return;
@@ -115,6 +118,7 @@
       });
     }
 
+    // Función para probar si una IP tiene una cámara activa
     async function testCamera(ip) {
       const ports = [80, 8080, 8000, 554];
       const paths = ['', '/video', '/snapshot.jpg', '/favicon.ico'];
@@ -140,6 +144,7 @@
       return { ip, found: false };
     }
 
+    // Función para seleccionar una cámara
     function selectCamera(ip, mac, name) {
       fetch('/register_and_set_default_camera', {
         method: 'POST',

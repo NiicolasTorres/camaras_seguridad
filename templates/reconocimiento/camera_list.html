@@ -70,52 +70,40 @@
     async function scanNetwork() {
       const status = document.getElementById("status-message");
       const container = document.getElementById("camera-results");
-      status.innerText = "🔍 Obteniendo tu IP local…";
-
-      const bases = await getLocalIPs();
-      console.log("IPs locales detectadas: ", bases); 
-      if (!bases.length) {
-        status.innerText = "No se pudo determinar tu IP local. Ingresala manualmente.";
-        return;
-      }
-      status.innerText = `🔍 Escaneando la red (${bases[0]}.0/24)…`;
-
-      const base = bases[0];
-      const ips = Array.from({length: 254}, (_, i) => `${base}.${i + 1}`).filter(isValidIP);
-      console.log("IPs a escanear: ", ips); 
-
-      const batchSize = 50;
-      let found = [];
-
-      for (let i = 0; i < ips.length; i += batchSize) {
-        const batch = ips.slice(i, i + batchSize);
-        const results = await Promise.all(batch.map(ip => testCamera(ip)));
-        found = found.concat(results.filter(r => r.found));
-        status.innerText = `🔍 Escaneado ${Math.min(i + batchSize, ips.length)}/${ips.length} IPs…`;
-      }
-
+      status.className = 'alert alert-info';
+      status.innerText = '🔍 Descubriendo cámaras en LAN…';
       container.innerHTML = '';
-      if (!found.length) {
-        status.innerText = "No se encontraron cámaras.";
-        return;
-      }
-      status.innerText = `${found.length} cámaras detectadas:`;
 
-      found.forEach(cam => {
-        const div = document.createElement('div');
-        div.className = "col-md-4 mb-4";
-        div.innerHTML = `
-          <div class="card p-3">
-            <h5>Cámara en ${cam.ip}:${cam.port}</h5>
-            <a href="http://${cam.ip}:${cam.port}/video" target="_blank" class="btn btn-info btn-sm">▶️ Ver</a>
-            <button class="btn btn-success btn-sm mt-2"
-               onclick="selectCamera('${cam.ip}:${cam.port}', '', 'Detectada frontend')">
-              ✅ Seleccionar
-            </button>
-          </div>
-        `;
-        container.appendChild(div);
-      });
+      try {
+        const res = await fetch('/scan-cameras/');
+        const cams = await res.json();
+        if (!cams.length) {
+          status.className = 'alert alert-warning';
+          status.innerText = '⚠️ No se encontraron cámaras.';
+          return;
+        }
+        status.className = 'alert alert-success';
+        status.innerText = `✅ ${cams.length} cámaras encontradas:`;
+        cams.forEach(({ name, ip, port }) => {
+          const div = document.createElement('div');
+          div.className = 'col-md-4 mb-4';
+          div.innerHTML = `
+            <div class="card p-3">
+              <h5>${name}</h5>
+              <p>${ip}:${port}</p>
+              <a href="http://${ip}:${port}/video" target="_blank" class="btn btn-info btn-sm">Ver</a>
+              <button class="btn btn-success btn-sm mt-2"
+                onclick="selectCamera('${ip}:${port}', '', '${name}')">
+                ✅ Seleccionar
+              </button>
+            </div>`;
+          container.appendChild(div);
+        });
+      } catch (err) {
+        console.error(err);
+        status.className = 'alert alert-danger';
+        status.innerText = '❌ Error conectando al escáner local.';
+      }
     }
 
     // Función para probar si una IP tiene una cámara activa

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import camera_list,proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
+from .views import camera_list, scan_cameras, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
 from . import views
 
 
@@ -22,4 +22,6 @@ urlpatterns = [
     path('service-worker.js', service_worker, name='service_worker'),
     path('mapa_alerta/', views.redirect_to_map, name='mapa_alerta'),
     path('proxy-camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
+    path('scan-cameras/', scan_cameras, name='scan_cameras'),  # <-- añade esta línea
+
 ]

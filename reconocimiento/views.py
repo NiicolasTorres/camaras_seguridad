@@ -33,6 +33,8 @@ import csv
 from django.http import HttpResponse
 import scapy.all as scapy
 from django.http import HttpResponseNotFound
+from django.views.decorators.http import require_GET
+from .scanner import get_discovered_cams
 
 def manifest(request):
     return JsonResponse({
@@ -72,7 +74,11 @@ def home(request):
 
     return render(request, 'home.html', {'cameras': cameras})
 
+@require_GET
+def scan_cameras(request):
 
+    cams = get_discovered_cams()
+    return JsonResponse(cams, safe=False)
 
 @csrf_exempt
 def proxy_camera(request, camera_ip):

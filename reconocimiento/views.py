@@ -33,7 +33,6 @@ import csv
 from django.http import HttpResponse
 import scapy.all as scapy
 from django.http import HttpResponseNotFound
-import traceback
 
 
 def manifest(request):
@@ -104,32 +103,30 @@ def set_default_camera(request, camera_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+@csrf_exempt
+@require_POST
 def register_and_set_default_camera(request):
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Usuario no autenticado"}, status=401)
 
     try:
-        # Intentar cargar los datos JSON
-        try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "Error al procesar el JSON"}, status=400)
-
+        data = json.loads(request.body)
         ip = data.get('ip')
+        mac = data.get('mac')
+        name = data.get('name')
+        location = data.get('location', 'Ubicación desconocida')
 
-        if not ip:
-            return JsonResponse({"error": "IP faltante"}, status=400)
+        if not ip or not name:
+            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
 
-        print(f"Datos recibidos: {data}")
-
-        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={'name': 'Cámara predeterminada'})
-
-        print(f"Cámara encontrada/creada: {camera}")
+        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={
+            'mac_address': mac,
+            'name': name,
+            'location': location
+        })
 
         user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
         user_profile.cameras.add(camera)
-
-        print(f"Cámaras asociadas al usuario: {user_profile.cameras.all()}")
 
         return JsonResponse({
             "message": f"Cámara {'registrada' if created else 'ya existente'} y asociada correctamente.",
@@ -137,11 +134,7 @@ def register_and_set_default_camera(request):
         })
 
     except Exception as e:
-        print(f"Error inesperado: {traceback.format_exc()}")
-        return JsonResponse({
-            "error": str(e),
-            "trace": traceback.format_exc()
-        }, status=500)
+        return JsonResponse({"error": str(e)}, status=500)
     
 
 def camera_list(request):

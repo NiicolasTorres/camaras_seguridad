@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import camera_list,detect_cameras ,proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
+from .views import camera_list,proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
 from . import views
 
 
@@ -7,7 +7,6 @@ urlpatterns = [
     path('cameras/', camera_list, name='camera_list'),
     path('camera_feed/<int:camera_id>/', views.camera_feed, name='camera_feed'),
     path('camera_feed_template/<int:camera_id>/', views.camera_feed_template, name='camera_feed_template'),
-    path('cameras/reconocimiento/detect_cameras/', detect_cameras, name='detect_cameras'),
     path('set_default_camera/<int:camera_id>/', views.set_default_camera, name='set_default_camera'),
     path('start_recording/<int:camera_id>/', start_recording, name='start_recording'),
     path('recording_in_progress/<int:camera_id>/', recording_in_progress, name='recording_in_progress'),

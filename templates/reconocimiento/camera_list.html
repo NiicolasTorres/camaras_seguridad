@@ -46,20 +46,30 @@
     try {
       const res = await fetch('/register_and_set_default_camera', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ip })
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          ip: ip,
+          name: `Cámara ${ip}` // Valor por defecto
+        })
       });
 
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (err) {
+        throw new Error("⚠️ La respuesta del servidor no es válida. ¿Estás logueado?");
+      }
 
       if (res.ok) {
         status.className = 'alert alert-success';
         status.innerText = `✅ ${data.message}`;
         document.getElementById('camera-container').style.display = 'block';
 
-        // Usar hls.js para mostrar el video desde Nginx
+        // Usar hls.js para mostrar el stream
         const video = document.getElementById('video');
-        const streamUrl = `https://${location.host}/hls/cam1.m3u8`;
+        const streamUrl = `http://${location.host}/hls/cam1.m3u8`; // Asegurate que la URL coincida
 
         if (Hls.isSupported()) {
           const hls = new Hls();
@@ -67,6 +77,9 @@
           hls.attachMedia(video);
         } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
           video.src = streamUrl;
+        } else {
+          status.className = 'alert alert-danger';
+          status.innerText = '❌ Tu navegador no soporta HLS.';
         }
 
       } else {
@@ -76,9 +89,8 @@
     } catch (err) {
       console.error(err);
       status.className = 'alert alert-danger';
-      status.innerText = '❌ Error al registrar la cámara.';
+      status.innerText = `❌ Error: ${err.message}`;
     }
   }
 </script>
-
 {% endblock %}

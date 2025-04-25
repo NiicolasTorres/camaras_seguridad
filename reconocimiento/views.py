@@ -113,7 +113,7 @@ def register_and_set_default_camera(request):
         data = json.loads(request.body)
         ip = data.get('ip')
         mac = data.get('mac')
-        name = data.get('name')
+        name = data.get('name', f'Cámara {ip}')
         location = data.get('location', 'Ubicación desconocida')
 
         if not ip or not name:

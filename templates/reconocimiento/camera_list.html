@@ -1,3 +1,9 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lista de Cámaras{% endblock %}
+
+{% block content %}
 <div class="form-group mb-3">
   <label for="ip-input">Ingrese la IP local de la cámara:</label>
   <input type="text" class="form-control" id="user-ip" placeholder="Ej: 192.168.1.5">
@@ -8,12 +14,15 @@
 <!-- Vista de la cámara -->
 <div class="mt-3" id="camera-container" style="display:none;">
   <h4>🎥 Vista de la cámara:</h4>
-  <img id="camera-feed" style="width:100%; max-width:600px;" />
+  <video id="video" controls autoplay style="width:100%; max-width:600px;"></video>
 </div>
 
 <div id="status-message" class="alert alert-info mt-3">
   Esperando para seleccionar cámara...
 </div>
+
+<!-- hls.js -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <script>
   function isValidIP(ip) {
@@ -35,7 +44,6 @@
     status.innerText = '🔒 Estableciendo cámara como predeterminada...';
 
     try {
-      // Guardar la IP en el backend
       const res = await fetch('/register_and_set_default_camera', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -47,11 +55,19 @@
       if (res.ok) {
         status.className = 'alert alert-success';
         status.innerText = `✅ ${data.message}`;
-
-        // Mostrar la cámara en vivo desde IP Webcam
-        const cameraUrl = `http://${ip}:8080/stream/video.mjpeg`;
-        document.getElementById('camera-feed').src = cameraUrl;
         document.getElementById('camera-container').style.display = 'block';
+
+        // Usar hls.js para mostrar el video desde Nginx
+        const video = document.getElementById('video');
+        const streamUrl = `https://${location.host}/hls/cam1.m3u8`;
+
+        if (Hls.isSupported()) {
+          const hls = new Hls();
+          hls.loadSource(streamUrl);
+          hls.attachMedia(video);
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = streamUrl;
+        }
 
       } else {
         status.className = 'alert alert-warning';

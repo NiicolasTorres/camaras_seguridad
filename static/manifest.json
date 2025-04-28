@@ -1,6 +1,6 @@
 {
     "name": "SilentEye",
-    "short_name": "MiPWA",
+    "short_name": "SilentEye",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#ffffff",

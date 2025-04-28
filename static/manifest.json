@@ -1,5 +1,5 @@
 {
-    "name": "Mi PWA en Django",
+    "name": "SilentEye",
     "short_name": "MiPWA",
     "start_url": "/",
     "display": "standalone",

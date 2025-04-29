@@ -106,35 +106,28 @@ def set_default_camera(request, camera_id):
 @csrf_exempt
 @require_POST
 def register_and_set_default_camera(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Usuario no autenticado"}, status=401)
-
     try:
         data = json.loads(request.body)
         ip = data.get('ip')
-        mac = data.get('mac')
-        name = data.get('name', f'Cámara {ip}')
-        location = data.get('location', 'Ubicación desconocida')
+        name = data.get('name')
 
         if not ip or not name:
-            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
+            return JsonResponse({"error": "Datos incompletos"}, status=400)
 
-        camera, created = Camera.objects.get_or_create(ip_address=ip, defaults={
-            'mac_address': mac,
-            'name': name,
-            'location': location
-        })
+        camera, created = Camera.objects.get_or_create(
+            ip_address=ip,
+            defaults={'name': name, 'location': 'Ubicación no especificada'}
+        )
 
-        user_profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_profile, created_profile = UserProfile.objects.get_or_create(user=request.user)
         user_profile.cameras.add(camera)
 
-        return JsonResponse({
-            "message": f"Cámara {'registrada' if created else 'ya existente'} y asociada correctamente.",
-            "camera_id": camera.id
-        })
+        return JsonResponse({"message": f"Cámara {camera.name} registrada y asignada correctamente."})
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        print(f"Error en register_and_set_default_camera: {e}")
+        return JsonResponse({"error": "Ocurrió un error interno."}, status=500)
+
     
 
 def camera_list(request):

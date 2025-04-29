@@ -33,6 +33,7 @@ import csv
 from django.http import HttpResponse
 import scapy.all as scapy
 from django.http import HttpResponseNotFound
+import traceback
 
 
 def manifest(request):
@@ -106,27 +107,38 @@ def set_default_camera(request, camera_id):
 @csrf_exempt
 @require_POST
 def register_and_set_default_camera(request):
+    # 1) Asegurarse que está logueado
+    if not request.user.is_authenticated:
+        return JsonResponse({"error": "Usuario no autenticado"}, status=401)
+
     try:
-        data = json.loads(request.body)
-        ip = data.get('ip')
+        data = json.loads(request.body.decode('utf-8'))
+        ip   = data.get('ip')
         name = data.get('name')
 
         if not ip or not name:
-            return JsonResponse({"error": "Datos incompletos"}, status=400)
+            return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
 
         camera, created = Camera.objects.get_or_create(
             ip_address=ip,
             defaults={'name': name, 'location': 'Ubicación no especificada'}
         )
 
-        user_profile, created_profile = UserProfile.objects.get_or_create(user=request.user)
-        user_profile.cameras.add(camera)
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile.cameras.add(camera)
 
-        return JsonResponse({"message": f"Cámara {camera.name} registrada y asignada correctamente."})
+        return JsonResponse({
+            "message": f"Cámara {camera.name} {'registrada' if created else 'asignada'} correctamente.",
+            "camera_id": camera.id
+        })
+
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "JSON inválido"}, status=400)
 
     except Exception as e:
-        print(f"Error en register_and_set_default_camera: {e}")
-        return JsonResponse({"error": "Ocurrió un error interno."}, status=500)
+        traceback.print_exc()
+        return JsonResponse({"error": "Error interno del servidor"}, status=500)
+
 
     
 

@@ -44,14 +44,14 @@
     status.innerText = '🔒 Estableciendo cámara como predeterminada...';
 
     try {
-      const res = await fetch('/register_and_set_default_camera', {
+      const res = await fetch('/register_and_set_default_camera/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ip: ip,
-          name: `Cámara ${ip}` // Valor por defecto
+          name: `Cámara ${ip}`
         })
       });
 

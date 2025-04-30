@@ -34,6 +34,7 @@ from django.http import HttpResponse
 import scapy.all as scapy
 from django.http import HttpResponseNotFound
 import traceback
+import subprocess
 
 
 def manifest(request):
@@ -74,6 +75,15 @@ def home(request):
 
     return render(request, 'home.html', {'cameras': cameras})
 
+def iniciar_stream(ip, cam_name):
+    subprocess.Popen([
+        "ffmpeg",
+        "-re", "-i", f"http://{ip}:8080/video",
+        "-c:v", "libx264",
+        "-preset", "veryfast",
+        "-f", "flv",
+        f"rtmp://localhost/live/{cam_name}"
+    ])
 
 @csrf_exempt
 def proxy_camera(request, camera_ip):
@@ -107,7 +117,6 @@ def set_default_camera(request, camera_id):
 @csrf_exempt
 @require_POST
 def register_and_set_default_camera(request):
-    # 1) Asegurarse que está logueado
     if not request.user.is_authenticated:
         return JsonResponse({"error": "Usuario no autenticado"}, status=401)
 

@@ -45,7 +45,6 @@
       const base = `${location.protocol}//${location.host}`;
       const endpoints = [
         { type: 'IP Webcam (MJPEG)',   url: `${base}/proxy_stream/${ip}/video` },
-        { type: 'IP Webcam (favicon)', url: `${base}/proxy_camera/${ip}/favicon.ico` },
       ];
 
       for (const e of endpoints) {

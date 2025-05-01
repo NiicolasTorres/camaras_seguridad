@@ -4,104 +4,99 @@
 {% block title %}Lista de Cámaras{% endblock %}
 
 {% block content %}
-<div class="form-group mb-3">
-  <label for="ip-input">Ingrese la IP local de la cámara:</label>
-  <input type="text" class="form-control" id="user-ip" placeholder="Ej: 192.168.1.5">
-</div>
+  <div class="form-group mb-3">
+    <label for="ip-input">Ingrese la IP local de la cámara:</label>
+    <input type="text" class="form-control" id="user-ip" placeholder="Ej: 192.168.1.5">
+  </div>
 
-<button class="btn btn-primary" onclick="setDefaultCamera()">🔒 Establecer como predeterminada</button>
+  <button class="btn btn-primary" onclick="setDefaultCamera()">🔒 Establecer como predeterminada</button>
 
-<!-- Vista de la cámara -->
-<div class="mt-3" id="camera-container" style="display:none;">
-  <h4>🎥 Vista de la cámara:</h4>
-  <video id="video" controls autoplay style="width:100%; max-width:600px;"></video>
-</div>
+  <!-- Vista de la cámara -->
+  <div class="mt-3" id="camera-container" style="display:none;">
+    <h4>🎥 Vista de la cámara:</h4>
+    <video id="video" controls autoplay style="width:100%; max-width:600px;"></video>
+  </div>
 
-<div id="status-message" class="alert alert-info mt-3">
-  Esperando para seleccionar cámara...
-</div>
+  <div id="status-message" class="alert alert-info mt-3">
+    Esperando para seleccionar cámara...
+  </div>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
-<script>
-  function isValidIP(ip) {
-    const regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    return regex.test(ip);
-  }
-
-  function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-      const cookies = document.cookie.split(';');
-      for (let cookie of cookies) {
-        cookie = cookie.trim();
-        if (cookie.startsWith(name + '=')) {
-          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-          break;
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script>
+    function isValidIP(ip) {
+      const regex = /^(\d{1,3}\.){3}\d{1,3}$/;
+      return regex.test(ip);
+    }
+    function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+        for (let cookie of document.cookie.split(';')) {
+          cookie = cookie.trim();
+          if (cookie.startsWith(name + '=')) {
+            cookieValue = decodeURIComponent(cookie.slice(name.length + 1));
+            break;
+          }
         }
       }
+      return cookieValue;
     }
-    return cookieValue;
-  }
-  async function waitForPlaylist(url, attempts = 10) {
-    for (let i = 0; i < attempts; i++) {
-      try {
-        const res = await fetch(url, { method: 'HEAD' });
-        if (res.ok) {
-          return true;
-        }
-      } catch (e) {
+
+    async function waitForPlaylist(url, attempts = 10) {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const res = await fetch(url, { method: 'HEAD' });
+          if (res.ok) return true;
+        } catch {}
+        await new Promise(r => setTimeout(r, 500));
       }
-      await new Promise(r => setTimeout(r, 500));
-    }
-    return false;
-  }
-
-  async function setDefaultCamera() {
-    const status = document.getElementById("status-message");
-    const ip = document.getElementById('user-ip').value.trim();
-
-    if (!isValidIP(ip)) {
-      status.className = 'alert alert-danger';
-      status.innerText = '❌ IP inválida';
-      return;
+      return false;
     }
 
-    status.className = 'alert alert-info';
-    status.innerText = '🔒 Estableciendo cámara como predeterminada...';
+    async function setDefaultCamera() {
+      const status = document.getElementById("status-message");
+      const ip     = document.getElementById('user-ip').value.trim();
 
-    try {
-      const res = await fetch('/register_and_set_default_camera/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: JSON.stringify({
-          ip: ip,
-          name: `Cámara ${ip}`
-        })
-      });
+      if (!isValidIP(ip)) {
+        status.className = 'alert alert-danger';
+        status.innerText = '❌ IP inválida';
+        return;
+      }
+
+      status.className = 'alert alert-info';
+      status.innerText = '🔒 Estableciendo cámara como predeterminada...';
 
       let data;
       try {
+        const res = await fetch('/register_and_set_default_camera/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+          },
+          body: JSON.stringify({ ip, name: `Cámara ${ip}` })
+        });
         data = await res.json();
-      } catch {
-        throw new Error("⚠️ La respuesta del servidor no es válida. ¿Estás logueado?");
-      }
 
-      if (!res.ok) {
-        status.className = 'alert alert-warning';
-        status.innerText = `⚠️ ${data.error}`;
+        if (!res.ok) {
+          status.className = 'alert alert-warning';
+          status.innerText = `⚠️ ${data.error}`;
+          return;
+        }
+      } catch (err) {
+        status.className = 'alert alert-danger';
+        status.innerText = `❌ Error: ${err.message}`;
         return;
       }
+
+      // Ya tenemos stream_name desde el servidor
+      const { stream_name } = data;
 
       status.className = 'alert alert-success';
       status.innerText = `✅ ${data.message}`;
       document.getElementById('camera-container').style.display = 'block';
 
-      const video = document.getElementById('video');
-      const streamUrl = `https://${location.host}/hls/cam1.m3u8`;
+      const video     = document.getElementById('video');
+      const streamUrl = `https://${location.host}/hls/${stream_name}.m3u8`;
 
       status.className = 'alert alert-info';
       status.innerText = '⌛ Preparando stream…';
@@ -127,12 +122,6 @@
 
       status.className = 'alert alert-success';
       status.innerText = '✅ Reproduciendo stream.';
-
-    } catch (err) {
-      console.error(err);
-      status.className = 'alert alert-danger';
-      status.innerText = `❌ Error: ${err.message}`;
     }
-  }
-</script>
+  </script>
 {% endblock %}

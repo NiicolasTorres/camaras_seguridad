@@ -47,7 +47,8 @@
       const res = await fetch('/register_and_set_default_camera/', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken') 
         },
         body: JSON.stringify({
           ip: ip,

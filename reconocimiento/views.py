@@ -120,7 +120,7 @@ def set_default_camera(request, camera_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@csrf_exempt
+@login_required
 @require_POST
 def register_and_set_default_camera(request):
     if not request.user.is_authenticated:

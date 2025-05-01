@@ -35,6 +35,7 @@ import scapy.all as scapy
 from django.http import HttpResponseNotFound
 import traceback
 import subprocess
+from .utils import slugify_ip
 
 
 def manifest(request):
@@ -135,14 +136,10 @@ def set_default_camera(request, camera_id):
 @login_required
 @require_POST
 def register_and_set_default_camera(request):
-    if not request.user.is_authenticated:
-        return JsonResponse({"error": "Usuario no autenticado"}, status=401)
-
     try:
         data = json.loads(request.body.decode('utf-8'))
-        ip = data.get('ip')
+        ip   = data.get('ip')
         name = data.get('name')
-
         if not ip or not name:
             return JsonResponse({"error": "IP o nombre faltantes"}, status=400)
 
@@ -150,25 +147,22 @@ def register_and_set_default_camera(request):
             ip_address=ip,
             defaults={'name': name, 'location': 'Ubicación no especificada'}
         )
-
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         profile.cameras.add(camera)
 
-        iniciar_stream(ip, "cam1")
+        stream_name = slugify_ip(ip)
+        iniciar_stream(ip, stream_name)
 
         return JsonResponse({
-            "message": f"Cámara {camera.name} {'registrada' if created else 'asignada'} correctamente.",
-            "camera_id": camera.id
+            "message":    f"Cámara {camera.name} {'registrada' if created else 'asignada'} correctamente.",
+            "camera_id":  camera.id,
+            "stream_name": stream_name,
         })
-
     except json.JSONDecodeError:
         return JsonResponse({"error": "JSON inválido"}, status=400)
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
         return JsonResponse({"error": "Error interno del servidor"}, status=500)
-
-
-
     
 
 def camera_list(request):

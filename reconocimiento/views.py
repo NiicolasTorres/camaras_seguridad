@@ -76,14 +76,20 @@ def home(request):
     return render(request, 'home.html', {'cameras': cameras})
 
 def iniciar_stream(ip, cam_name):
+    output_dir = f"/tmp/hls"
+    os.makedirs(output_dir, exist_ok=True)
     subprocess.Popen([
         "ffmpeg",
-        "-re", "-i", f"http://{ip}:8080/video",
+        "-i", f"http://{ip}:8080/video",
         "-c:v", "libx264",
         "-preset", "veryfast",
-        "-f", "flv",
-        f"rtmp://localhost/live/{cam_name}"
+        "-f", "hls",
+        "-hls_time", "2",
+        "-hls_list_size", "5",
+        "-hls_flags", "delete_segments",
+        f"{output_dir}/{cam_name}.m3u8"
     ])
+
 
 @csrf_exempt
 def proxy_camera(request, camera_ip):

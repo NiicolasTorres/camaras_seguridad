@@ -45,7 +45,7 @@
     async function detectCamera(ip) {
       const endpoints = [
         { type: 'IP Webcam', url: `http://${ip}:8080/video` }, // Para MJPEG en IP Webcam
-        { type: 'IP Webcam (HLS)', url: `http://${ip}:8080/hls/stream.m3u8` }, // Para HLS en IP Webcam
+        { type: 'IP Webcam (HLS)', url: `https://${ip}:8080/hls/stream.m3u8` }, // Para HLS en IP Webcam
         { type: 'Generic IP Camera', url: `http://${ip}/video` }, // Para cámaras IP genéricas
         { type: 'Generic IP Camera (HLS)', url: `http://${ip}/live/stream.m3u8` }
       ];

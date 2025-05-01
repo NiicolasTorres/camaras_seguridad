@@ -76,23 +76,17 @@ def home(request):
     return render(request, 'home.html', {'cameras': cameras})
 
 def iniciar_stream(ip, cam_name):
-    output_dir = f"/tmp/hls"
+    output_dir = "/tmp/hls"
     os.makedirs(output_dir, exist_ok=True)
-    
-    try:
-        subprocess.Popen([
-            "ffmpeg",
-            "-i", f"http://{ip}:8080/video",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-f", "hls",
-            "-hls_time", "2",
-            "-hls_list_size", "5",
-            "-hls_flags", "delete_segments",
-            f"{output_dir}/{cam_name}.m3u8"
-        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except Exception as e:
-        print(f"[Stream error] No se pudo iniciar ffmpeg: {e}")
+    log_path = os.path.join(output_dir, f"{cam_name}.log")
+    subprocess.Popen([
+        "ffmpeg", "-i", f"http://{ip}:8080/video",
+        "-c:v", "libx264", "-preset", "veryfast",
+        "-f", "hls", "-hls_time", "2",
+        "-hls_list_size", "5", "-hls_flags", "delete_segments",
+        f"{output_dir}/{cam_name}.m3u8"
+    ], stderr=open(log_path, "w"), stdout=subprocess.DEVNULL)
+
 
 
 @csrf_exempt

@@ -21,7 +21,6 @@
   Esperando para seleccionar cámara...
 </div>
 
-<!-- hls.js -->
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <script>
@@ -33,18 +32,30 @@
   function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
+      const cookies = document.cookie.split(';');
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
         }
+      }
     }
     return cookieValue;
-}
-
+  }
+  async function waitForPlaylist(url, attempts = 10) {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        const res = await fetch(url, { method: 'HEAD' });
+        if (res.ok) {
+          return true;
+        }
+      } catch (e) {
+      }
+      await new Promise(r => setTimeout(r, 500));
+    }
+    return false;
+  }
 
   async function setDefaultCamera() {
     const status = document.getElementById("status-message");
@@ -64,7 +75,7 @@
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-CSRFToken': getCookie('csrftoken') 
+          'X-CSRFToken': getCookie('csrftoken')
         },
         body: JSON.stringify({
           ip: ip,
@@ -75,34 +86,48 @@
       let data;
       try {
         data = await res.json();
-      } catch (err) {
+      } catch {
         throw new Error("⚠️ La respuesta del servidor no es válida. ¿Estás logueado?");
       }
 
-      if (res.ok) {
-        status.className = 'alert alert-success';
-        status.innerText = `✅ ${data.message}`;
-        document.getElementById('camera-container').style.display = 'block';
-
-        // Usar hls.js para mostrar el stream
-        const video = document.getElementById('video');
-        const streamUrl = `https://${location.host}/hls/cam1.m3u8`; 
-
-        if (Hls.isSupported()) {
-          const hls = new Hls();
-          hls.loadSource(streamUrl);
-          hls.attachMedia(video);
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = streamUrl;
-        } else {
-          status.className = 'alert alert-danger';
-          status.innerText = '❌ Tu navegador no soporta HLS.';
-        }
-
-      } else {
+      if (!res.ok) {
         status.className = 'alert alert-warning';
         status.innerText = `⚠️ ${data.error}`;
+        return;
       }
+
+      status.className = 'alert alert-success';
+      status.innerText = `✅ ${data.message}`;
+      document.getElementById('camera-container').style.display = 'block';
+
+      const video = document.getElementById('video');
+      const streamUrl = `https://${location.host}/hls/cam1.m3u8`;
+
+      status.className = 'alert alert-info';
+      status.innerText = '⌛ Preparando stream…';
+
+      const ready = await waitForPlaylist(streamUrl, 10);
+      if (!ready) {
+        status.className = 'alert alert-danger';
+        status.innerText = '❌ El stream aún no está listo. Intenta de nuevo en unos segundos.';
+        return;
+      }
+
+      if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource(streamUrl);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = streamUrl;
+      } else {
+        status.className = 'alert alert-danger';
+        status.innerText = '❌ Tu navegador no soporta HLS.';
+        return;
+      }
+
+      status.className = 'alert alert-success';
+      status.innerText = '✅ Reproduciendo stream.';
+
     } catch (err) {
       console.error(err);
       status.className = 'alert alert-danger';

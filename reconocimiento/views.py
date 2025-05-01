@@ -142,7 +142,7 @@ def register_and_set_default_camera(request):
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         profile.cameras.add(camera)
 
-        iniciar_stream(ip, camera.name.replace(" ", "_"))
+        iniciar_stream(ip, "cam1")
 
         return JsonResponse({
             "message": f"Cámara {camera.name} {'registrada' if created else 'asignada'} correctamente.",

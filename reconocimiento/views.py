@@ -122,7 +122,7 @@ def register_and_set_default_camera(request):
 
     try:
         data = json.loads(request.body.decode('utf-8'))
-        ip   = data.get('ip')
+        ip = data.get('ip')
         name = data.get('name')
 
         if not ip or not name:
@@ -136,6 +136,8 @@ def register_and_set_default_camera(request):
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
         profile.cameras.add(camera)
 
+        iniciar_stream(ip, camera.name.replace(" ", "_"))
+
         return JsonResponse({
             "message": f"Cámara {camera.name} {'registrada' if created else 'asignada'} correctamente.",
             "camera_id": camera.id
@@ -143,10 +145,10 @@ def register_and_set_default_camera(request):
 
     except json.JSONDecodeError:
         return JsonResponse({"error": "JSON inválido"}, status=400)
-
     except Exception as e:
         traceback.print_exc()
         return JsonResponse({"error": "Error interno del servidor"}, status=500)
+
 
 
     

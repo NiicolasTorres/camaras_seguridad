@@ -14,4 +14,4 @@ urlpatterns = [
     path('save_subscription/', save_subscription, name='save_subscription'),
 
 
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)   + static('/hls/', document_root='/tmp/hls/')

@@ -78,17 +78,21 @@ def home(request):
 def iniciar_stream(ip, cam_name):
     output_dir = f"/tmp/hls"
     os.makedirs(output_dir, exist_ok=True)
-    subprocess.Popen([
-        "ffmpeg",
-        "-i", f"http://{ip}:8080/video",
-        "-c:v", "libx264",
-        "-preset", "veryfast",
-        "-f", "hls",
-        "-hls_time", "2",
-        "-hls_list_size", "5",
-        "-hls_flags", "delete_segments",
-        f"{output_dir}/{cam_name}.m3u8"
-    ])
+    
+    try:
+        subprocess.Popen([
+            "ffmpeg",
+            "-i", f"http://{ip}:8080/video",
+            "-c:v", "libx264",
+            "-preset", "veryfast",
+            "-f", "hls",
+            "-hls_time", "2",
+            "-hls_list_size", "5",
+            "-hls_flags", "delete_segments",
+            f"{output_dir}/{cam_name}.m3u8"
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        print(f"[Stream error] No se pudo iniciar ffmpeg: {e}")
 
 
 @csrf_exempt

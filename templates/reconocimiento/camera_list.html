@@ -24,8 +24,7 @@
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     function isValidIP(ip) {
-      const regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-      return regex.test(ip);
+      return /^(\d{1,3}\.){3}\d{1,3}$/.test(ip);
     }
 
     function getCookie(name) {
@@ -43,25 +42,19 @@
     }
 
     async function detectCamera(ip) {
+      const base = `${location.protocol}//${location.host}`;
       const endpoints = [
-        { type: 'IP Webcam', url: `http://${ip}:8080/video` }, // Para MJPEG en IP Webcam
-        { type: 'IP Webcam (HLS)', url: `https://${ip}:8080/hls/stream.m3u8` }, // Para HLS en IP Webcam
-        { type: 'Generic IP Camera', url: `http://${ip}/video` }, // Para cámaras IP genéricas
-        { type: 'Generic IP Camera (HLS)', url: `http://${ip}/live/stream.m3u8` }
+        { type: 'IP Webcam (MJPEG)',   url: `${base}/proxy_stream/${ip}/video` },
+        { type: 'IP Webcam (favicon)', url: `${base}/proxy_camera/${ip}/favicon.ico` },
       ];
 
-      for (const endpoint of endpoints) {
+      for (const e of endpoints) {
         try {
-          const res = await fetch(endpoint.url, { method: 'HEAD' });
-          if (res.ok) {
-            return endpoint.type;  
-          }
-        } catch (err) {
-          
-        }
+          const res = await fetch(e.url, { method: 'HEAD' });
+          if (res.ok) return e.type;
+        } catch {}
       }
-
-      return null;  
+      return null;
     }
 
     async function waitForPlaylist(url, attempts = 10) {
@@ -108,6 +101,7 @@
           },
           body: JSON.stringify({ ip, name: `Cámara ${ip}` })
         });
+
         const data = await res.json();
 
         if (!res.ok) {
@@ -123,7 +117,7 @@
         document.getElementById('camera-container').style.display = 'block';
 
         const video = document.getElementById('video');
-        const streamUrl = `https://${location.host}/hls/${stream_name}.m3u8`;
+        const streamUrl = `${location.protocol}//${location.host}/hls/${stream_name}.m3u8`;
 
         status.className = 'alert alert-info';
         status.innerText = '⌛ Preparando stream…';
@@ -139,20 +133,15 @@
           const hls = new Hls();
           hls.loadSource(streamUrl);
           hls.attachMedia(video);
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          video.src = streamUrl;
         } else {
-          status.className = 'alert alert-danger';
-          status.innerText = '❌ Tu navegador no soporta HLS.';
-          return;
+          video.src = streamUrl;
         }
 
         status.className = 'alert alert-success';
-        status.innerText = '✅ Reproduciendo stream.';
+        status.innerText = '🎬 Reproduciendo stream.';
       } catch (err) {
         status.className = 'alert alert-danger';
-        status.innerText = `❌ Error: ${err.message}`;
-        return;
+        status.innerText = '❌ Error al registrar la cámara.';
       }
     }
   </script>

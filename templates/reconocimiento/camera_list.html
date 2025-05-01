@@ -44,7 +44,7 @@
     async function detectCamera(ip) {
       const base = `${location.protocol}//${location.host}`;
       const endpoints = [
-        { type: 'IP Webcam (MJPEG)',   url: `${base}/proxy_stream/${ip}/video` },
+        { type: 'IP Webcam (MJPEG)',   url: `${base}/proxy_stream/${ip}/` },
       ];
 
       for (const e of endpoints) {

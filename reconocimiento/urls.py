@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import camera_list, serve_hls , proxy_stream, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
+from .views import camera_list, serve_hls, webrtc_offer, webrtc_answer , proxy_stream, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
 from . import views
-
+from django.urls import re_path
 
 urlpatterns = [
     path('cameras/', camera_list, name='camera_list'),
@@ -24,6 +24,9 @@ urlpatterns = [
     path('proxy-camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
     path('proxy_camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
     path('proxy_stream/<str:camera_ip>/', views.proxy_stream, name='proxy_stream'),
+    path('proxy_stream/<str:camera_ip>/video', proxy_stream),
     path("media_streams/<path:path>", serve_hls),
-
+    re_path(r'^media_streams/(?P<path>.+)$', serve_hls),
+    path('webrtc_offer/<str:camera_ip>/', webrtc_offer),
+    path('webrtc_answer/<str:camera_ip>/', webrtc_answer),
 ]

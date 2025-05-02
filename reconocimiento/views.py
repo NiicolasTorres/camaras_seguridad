@@ -95,6 +95,15 @@ def serve_hls(request, path):
     return serve(request, path, document_root='/tmp/hls')
 
 @csrf_exempt
+def webrtc_offer(request, camera_ip):
+    return JsonResponse({'offer': { ... }})
+
+@csrf_exempt
+def webrtc_answer(request, camera_ip):
+    # Lógica para recibir la respuesta
+    return JsonResponse({'status': 'ok'})
+
+@csrf_exempt
 def proxy_stream(request, camera_ip):
     camera_url = f"http://{camera_ip}:8080/video"  
 

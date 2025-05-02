@@ -40,11 +40,15 @@ async function waitForPlaylist(url, attempts = 10) {
 
 async function detectStreamType(ip) {
   const base = `${location.protocol}//${location.host}`;
+  const hlsUrl = `${base}/media_streams/${ip}.m3u8`;
+
+  // 🔄 Iniciar generación de stream HLS antes de intentar cargarlo
+  await fetch(`${base}/start_stream/${ip}/`);
 
   const endpoints = [
     {
       type: 'HLS',
-      url: `${base}/media_streams/${ip}.m3u8`,
+      url: hlsUrl,
       check: async (url) => await waitForPlaylist(url),
     },
     {
@@ -126,28 +130,34 @@ async function setDefaultCamera() {
 }
 
 async function startWebRTC(ip, videoElement) {
-  const response = await fetch(`/webrtc_offer/${ip}/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  });
+  try {
+    const response = await fetch(`/webrtc_offer/${ip}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
 
-  const data = await response.json();
-  const pc = new RTCPeerConnection();
+    const data = await response.json();
+    const pc = new RTCPeerConnection();
 
-  pc.ontrack = (event) => {
-    videoElement.srcObject = event.streams[0];
-    videoElement.play();
-  };
+    pc.ontrack = (event) => {
+      videoElement.srcObject = event.streams[0];
+      videoElement.play();
+    };
 
-  await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-  const answer = await pc.createAnswer();
-  await pc.setLocalDescription(answer);
+    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-  await fetch(`/webrtc_answer/${ip}/`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ answer: pc.localDescription })
-  });
+    await fetch(`/webrtc_answer/${ip}/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer: pc.localDescription })
+    });
+  } catch (err) {
+    const status = document.getElementById("status-message");
+    status.className = 'alert alert-danger';
+    status.innerText = '❌ Error al conectar por WebRTC.';
+  }
 }
 </script>
 {% endblock %}

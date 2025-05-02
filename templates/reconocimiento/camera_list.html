@@ -81,7 +81,7 @@
   status.innerText = '🔒 Intentando acceder a la cámara en tu red local...';
 
   const video = document.getElementById('video');
-  const cameraUrl = `http://${ip}:8080/video`; // Puerto estándar de IP Webcam o MJPEG
+  const cameraUrl = `https://${ip}:8080/video`; // Puerto estándar de IP Webcam o MJPEG
 
   // Probamos si está accesible
   try {

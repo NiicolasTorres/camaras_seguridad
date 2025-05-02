@@ -42,7 +42,6 @@ async function detectStreamType(ip) {
   const base = `${location.protocol}//${location.host}`;
   const hlsUrl = `${base}/media_streams/${ip}.m3u8`;
 
-  // 🔄 Iniciar generación de stream HLS antes de intentar cargarlo
   await fetch(`${base}/start_stream/${ip}/`);
 
   const endpoints = [
@@ -58,7 +57,9 @@ async function detectStreamType(ip) {
         try {
           const res = await fetch(url, { method: 'HEAD' });
           return res.ok;
-        } catch { return false; }
+        } catch {
+          return false;
+        }
       }
     },
     {
@@ -68,7 +69,9 @@ async function detectStreamType(ip) {
         try {
           const res = await fetch(url, { method: 'OPTIONS' });
           return res.ok;
-        } catch { return false; }
+        } catch {
+          return false;
+        }
       }
     }
   ];

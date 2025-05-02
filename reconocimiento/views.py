@@ -39,6 +39,7 @@ from .utils import slugify_ip
 from django.views.static import serve
 
 
+
 def manifest(request):
     return JsonResponse({
         "name": "Seguridad con SilentEye",
@@ -91,49 +92,35 @@ def iniciar_stream(ip, stream_name):
         f"{output_dir}/{stream_name}.m3u8"
     ], stderr=open(log_path, "w"), stdout=subprocess.DEVNULL)
 
-def serve_hls(request, path):
-    return serve(request, path, document_root='/tmp/hls')
 
-@csrf_exempt
-def webrtc_offer(request, camera_ip):
-    return JsonResponse({'offer': { ... }})
-
-@csrf_exempt
-def webrtc_answer(request, camera_ip):
-    # Lógica para recibir la respuesta
-    return JsonResponse({'status': 'ok'})
-
-@csrf_exempt
-def proxy_stream(request, camera_ip):
-    camera_url = f"http://{camera_ip}:8080/video"  
-
-    try:
-        response = requests.get(camera_url, stream=True, timeout=5)
-        content_type = response.headers.get('Content-Type', 'video/x-motion-jpeg')
-        return StreamingHttpResponse(
-            streaming_content=response.iter_content(chunk_size=1024),
-            content_type=content_type
-        )
-    except Exception as e:
-        print(f"Error al hacer proxy a la cámara: {e}")
-        return HttpResponseNotFound("No se pudo acceder a la cámara.")
-    
 @csrf_exempt
 def proxy_camera(request, camera_ip):
     if not camera_ip:
         return HttpResponseNotFound("IP no proporcionada")
 
     try:
-        stream_url = f"http://{camera_ip}:8080/video"
+        stream_url = f"http://{camera_ip}:8080/favicon.ico"
         response = requests.get(stream_url, stream=True, timeout=2)
         return StreamingHttpResponse(
             streaming_content=response.iter_content(chunk_size=8192),
-            content_type='multipart/x-mixed-replace; boundary=--frame'  
+            content_type=response.headers.get('Content-Type', 'image/jpeg')
         )
     except Exception as e:
         print(f"[Proxy error]: {e}")
         return HttpResponseNotFound("No se pudo conectar con la cámara.")
 
+@csrf_exempt
+def proxy_stream(request, camera_ip):
+    url = camera_ip 
+    try:
+        upstream = requests.get(url, stream=True, timeout=5)
+    except Exception as e:
+        return HttpResponseNotFound(f"No se pudo conectar a {url}: {e}")
+
+    return StreamingHttpResponse(
+        streaming_content=upstream.iter_content(chunk_size=8192),
+        content_type=upstream.headers.get('Content-Type', 'application/octet-stream'),
+    )
 
 def set_default_camera(request, camera_id):
     try:

@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import camera_list, proxy_stream, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
+from .views import camera_list, proxy_stream, start_stream, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
 from . import views
 from django.urls import re_path
 from django.views.static import serve
@@ -26,4 +26,6 @@ urlpatterns = [
     path('proxy_stream/<str:camera_ip>/', views.proxy_stream, name='proxy_stream'),
     path('proxy_stream/<str:camera_ip>/video', proxy_stream),
     path('media_streams/<str:filename>/', serve, {'document_root': '/tmp/hls'}, name='serve_hls'),
+    path('start_stream/<str:ip>/', views.start_stream, name='start_stream'),
+
 ]

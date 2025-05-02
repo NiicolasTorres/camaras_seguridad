@@ -92,6 +92,15 @@ def iniciar_stream(ip, stream_name):
         f"{output_dir}/{stream_name}.m3u8"
     ], stderr=open(log_path, "w"), stdout=subprocess.DEVNULL)
 
+@csrf_exempt
+def start_stream(request, ip):
+    try:
+        stream_name = slugify_ip(ip)
+        iniciar_stream(ip, stream_name)
+        return JsonResponse({'message': 'Stream iniciado'})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
 
 @csrf_exempt
 def proxy_camera(request, camera_ip):

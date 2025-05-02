@@ -107,18 +107,7 @@ def proxy_camera(request, camera_ip):
         print(f"[Proxy error]: {e}")
         return HttpResponseNotFound("No se pudo conectar con la cámara.")
 
-@csrf_exempt
-def proxy_stream(request, camera_ip):
-    url = camera_ip 
-    try:
-        upstream = requests.get(url, stream=True, timeout=5)
-    except Exception as e:
-        return HttpResponseNotFound(f"No se pudo conectar a {url}: {e}")
 
-    return StreamingHttpResponse(
-        streaming_content=upstream.iter_content(chunk_size=8192),
-        content_type=upstream.headers.get('Content-Type', 'application/octet-stream'),
-    )
 
 def set_default_camera(request, camera_id):
     try:

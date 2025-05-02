@@ -68,80 +68,37 @@
     }
 
     async function setDefaultCamera() {
-      const status = document.getElementById("status-message");
-      const ip = document.getElementById('user-ip').value.trim();
+  const status = document.getElementById("status-message");
+  const ip = document.getElementById('user-ip').value.trim();
 
-      if (!isValidIP(ip)) {
-        status.className = 'alert alert-danger';
-        status.innerText = '❌ IP inválida';
-        return;
-      }
+  if (!isValidIP(ip)) {
+    status.className = 'alert alert-danger';
+    status.innerText = '❌ IP inválida';
+    return;
+  }
 
-      status.className = 'alert alert-info';
-      status.innerText = '🔒 Detectando tipo de cámara...';
+  status.className = 'alert alert-info';
+  status.innerText = '🔒 Intentando acceder a la cámara en tu red local...';
 
-      const cameraType = await detectCamera(ip);
+  const video = document.getElementById('video');
+  const cameraUrl = `http://${ip}:8080/video`; // Puerto estándar de IP Webcam o MJPEG
 
-      if (!cameraType) {
-        status.className = 'alert alert-danger';
-        status.innerText = '❌ No se pudo detectar el tipo de cámara.';
-        return;
-      }
+  // Probamos si está accesible
+  try {
+    const test = await fetch(cameraUrl, { method: 'HEAD' });
+    if (!test.ok) throw new Error();
 
-      status.className = 'alert alert-info';
-      status.innerText = `✅ Cámara detectada: ${cameraType}`;
+    video.src = cameraUrl;
+    video.play();
+    document.getElementById('camera-container').style.display = 'block';
+    status.className = 'alert alert-success';
+    status.innerText = '🎬 Cámara conectada directamente desde tu red local.';
 
-      try {
-        const res = await fetch('/register_and_set_default_camera/', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': getCookie('csrftoken')
-          },
-          body: JSON.stringify({ ip, name: `Cámara ${ip}` })
-        });
+  } catch (err) {
+    status.className = 'alert alert-danger';
+    status.innerText = '❌ No se pudo acceder a la cámara en tu red local.';
+  }
+}
 
-        const data = await res.json();
-
-        if (!res.ok) {
-          status.className = 'alert alert-warning';
-          status.innerText = `⚠️ ${data.error}`;
-          return;
-        }
-
-        const { stream_name } = data;
-
-        status.className = 'alert alert-success';
-        status.innerText = `✅ ${data.message}`;
-        document.getElementById('camera-container').style.display = 'block';
-
-        const video = document.getElementById('video');
-        const streamUrl = `${location.protocol}//${location.host}/hls/${stream_name}.m3u8`;
-
-        status.className = 'alert alert-info';
-        status.innerText = '⌛ Preparando stream…';
-
-        const ready = await waitForPlaylist(streamUrl, 10);
-        if (!ready) {
-          status.className = 'alert alert-danger';
-          status.innerText = '❌ El stream aún no está listo. Intenta de nuevo en unos segundos.';
-          return;
-        }
-
-        if (Hls.isSupported()) {
-          const hls = new Hls();
-          hls.loadSource(streamUrl);
-          hls.attachMedia(video);
-        } else {
-          video.src = streamUrl;
-        }
-
-        status.className = 'alert alert-success';
-        status.innerText = '🎬 Reproduciendo stream.';
-      } catch (err) {
-        status.className = 'alert alert-danger';
-        status.innerText = '❌ Error al registrar la cámara.';
-      }
-    }
   </script>
 {% endblock %}

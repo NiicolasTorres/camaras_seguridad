@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import camera_list,proxy_stream, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
+from .views import camera_list, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
 from . import views
 
 
@@ -23,7 +23,6 @@ urlpatterns = [
     path('mapa_alerta/', views.redirect_to_map, name='mapa_alerta'),
     path('proxy-camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
     path('proxy_camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
-    path('proxy_stream/<str:camera_ip>/', views.proxy_stream, name='proxy_stream'),
 
 
 ]

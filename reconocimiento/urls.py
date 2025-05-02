@@ -22,7 +22,6 @@ urlpatterns = [
     path('service-worker.js', service_worker, name='service_worker'),
     path('mapa_alerta/', views.redirect_to_map, name='mapa_alerta'),
     path('proxy-camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
-    path('proxy_camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
     path('proxy_stream/<str:camera_ip>/', views.proxy_stream, name='proxy_stream'),
     path('proxy_stream/<str:camera_ip>/video', proxy_stream),
     path("media_streams/<path:path>", serve_hls),

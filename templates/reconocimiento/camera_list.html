@@ -44,37 +44,6 @@ async function detectStreamType(ip) {
 
   await fetch(`${base}/start_stream/${ip}/`);
 
-  const endpoints = [
-    {
-      type: 'HLS',
-      url: hlsUrl,
-      check: async (url) => await waitForPlaylist(url),
-    },
-    {
-      type: 'MJPEG',
-      url: `${base}/proxy_stream/${ip}/video`,
-      check: async (url) => {
-        try {
-          const res = await fetch(url, { method: 'HEAD' });
-          return res.ok;
-        } catch {
-          return false;
-        }
-      }
-    },
-    {
-      type: 'WebRTC',
-      url: `${base}/webrtc_offer/${ip}/`,
-      check: async (url) => {
-        try {
-          const res = await fetch(url, { method: 'OPTIONS' });
-          return res.ok;
-        } catch {
-          return false;
-        }
-      }
-    }
-  ];
 
   for (const endpoint of endpoints) {
     const ok = await endpoint.check(endpoint.url);

@@ -24,7 +24,7 @@ urlpatterns = [
     path('mapa_alerta/', views.redirect_to_map, name='mapa_alerta'),
     path('proxy-camera/<str:camera_ip>/', views.proxy_camera, name='proxy_camera'),
     path('proxy_stream/<str:camera_ip>/', views.proxy_stream, name='proxy_stream'),
-    path('proxy_stream/<str:camera_ip>/video', proxy_stream),
+    path('proxy_stream/<str:camera_ip>/video/', views.proxy_stream, name='proxy_stream_video'),
     path('media_streams/<str:filename>/', serve, {'document_root': '/tmp/hls'}, name='serve_hls'),
     path('start_stream/<str:ip>/', views.start_stream, name='start_stream'),
 

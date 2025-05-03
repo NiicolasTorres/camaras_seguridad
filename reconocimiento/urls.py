@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import camera_list, proxy_stream, start_stream, proxy_camera, service_worker,camera_feed, home, start_recording, recording_in_progress, manifest,update_location, edit_camera_name,download_csv
+from .views import *
 from . import views
 from django.urls import re_path
 from django.views.static import serve

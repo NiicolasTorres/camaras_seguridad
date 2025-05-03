@@ -120,7 +120,7 @@ def proxy_camera(request, camera_ip):
 
 @csrf_exempt
 def proxy_stream(request, camera_ip):
-    url = camera_ip 
+    url = f'http://{camera_ip}:8080/video'  
     try:
         upstream = requests.get(url, stream=True, timeout=5)
     except Exception as e:
@@ -128,7 +128,7 @@ def proxy_stream(request, camera_ip):
 
     return StreamingHttpResponse(
         streaming_content=upstream.iter_content(chunk_size=8192),
-        content_type=upstream.headers.get('Content-Type', 'application/octet-stream'),
+        content_type=upstream.headers.get('Content-Type'),
     )
 
 def set_default_camera(request, camera_id):

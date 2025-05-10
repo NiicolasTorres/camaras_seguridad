@@ -85,14 +85,14 @@ def iniciar_stream(request, ip, stream_name):
     proxy_url = f"http://{request.get_host()}/proxy_stream/{ip}/"
     subprocess.Popen([
         "ffmpeg",
+        "-headers", "User-Agent: Mozilla/5.0\r\n",
         "-i", proxy_url,
         "-c:v", "libx264", "-preset", "veryfast",
         "-f", "hls", "-hls_time", "2",
         "-hls_list_size", "5", "-hls_flags", "delete_segments",
         f"{output_dir}/{stream_name}.m3u8"
     ], stderr=open(log_path, "w"), stdout=subprocess.DEVNULL)
-    
-    return HttpResponse("Stream iniciado.")
+
 
 @csrf_exempt
 def start_stream(request, ip):

@@ -98,7 +98,7 @@ def iniciar_stream(request, ip, stream_name):
 def start_stream(request, ip):
     try:
         stream_name = slugify_ip(ip)
-        iniciar_stream(ip, stream_name)
+        iniciar_stream(request, ip, stream_name)
         return JsonResponse({'message': 'Stream iniciado'})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

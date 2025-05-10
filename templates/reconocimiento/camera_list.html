@@ -43,13 +43,12 @@ async function detectStreamType(ip) {
     const base = `${location.protocol}//${location.host}`;
     const proxyUrl = `${base}/proxy_stream/${ip}/`;
 
-
     await fetch(`${base}/start_stream/${ip}/`);
 
     const endpoints = [
       {
         type: 'HLS',
-        url: hlsUrl,
+        url: `${base}/media_streams/${ip}.m3u8`,
         check: async (url) => await waitForPlaylist(url),
       },
       {
@@ -65,6 +64,7 @@ async function detectStreamType(ip) {
         }
       }
     ];
+
     console.log("endpoints:", endpoints); 
     for (const endpoint of endpoints) {
       const ok = await endpoint.check(endpoint.url);
@@ -72,7 +72,8 @@ async function detectStreamType(ip) {
     }
 
     return null;
-  }
+}
+
 
 async function setDefaultCamera() {
   const status = document.getElementById("status-message");

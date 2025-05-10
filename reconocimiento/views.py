@@ -106,19 +106,26 @@ def start_stream(request, ip):
 
 @csrf_exempt
 def proxy_camera(request, camera_ip):
+    import requests
+    from django.http import StreamingHttpResponse
+
     if not camera_ip:
         return HttpResponseNotFound("IP no proporcionada")
 
     try:
-        stream_url = f"http://{camera_ip}:8080/favicon.ico"
-        response = requests.get(stream_url, stream=True, timeout=2)
-        return StreamingHttpResponse(
-            streaming_content=response.iter_content(chunk_size=8192),
-            content_type=response.headers.get('Content-Type', 'image/jpeg')
-        )
+        stream_url = f"http://{camera_ip}:8080/video" 
+
+        def generate():
+            with requests.get(stream_url, stream=True) as r:
+                for chunk in r.iter_content(chunk_size=1024):
+                    if chunk:
+                        yield chunk
+
+        return StreamingHttpResponse(generate(), content_type="multipart/x-mixed-replace; boundary=--frame")
+    
     except Exception as e:
-        print(f"[Proxy error]: {e}")
-        return HttpResponseNotFound("No se pudo conectar con la cámara.")
+        return HttpResponse(f"Error: {str(e)}", status=500)
+
 
 @csrf_exempt
 def proxy_stream(request, camera_ip):

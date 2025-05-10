@@ -41,7 +41,8 @@ async function waitForPlaylist(url, attempts = 10) {
 async function detectStreamType(ip) {
     console.log("Entrando a detectStreamType");
     const base = `${location.protocol}//${location.host}`;
-    const hlsUrl = `${base}/hls/${ip}.m3u8`;
+    const proxyUrl = `${base}/proxy_stream/${ip}/`;
+
 
     await fetch(`${base}/start_stream/${ip}/`);
 

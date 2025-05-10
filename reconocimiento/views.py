@@ -78,11 +78,11 @@ def home(request):
 
     return render(request, 'home.html', {'cameras': cameras})
 
-def iniciar_stream(ip, stream_name):
+def iniciar_stream(request, ip, stream_name):
     output_dir = "/tmp/hls"
     os.makedirs(output_dir, exist_ok=True)
     log_path = os.path.join(output_dir, f"{stream_name}.log")
-    proxy_url = f"http://127.0.0.1:8000/proxy_stream/{ip}/"
+    proxy_url = f"http://{request.get_host()}/proxy_stream/{ip}/"
     subprocess.Popen([
         "ffmpeg",
         "-i", proxy_url,
@@ -91,6 +91,8 @@ def iniciar_stream(ip, stream_name):
         "-hls_list_size", "5", "-hls_flags", "delete_segments",
         f"{output_dir}/{stream_name}.m3u8"
     ], stderr=open(log_path, "w"), stdout=subprocess.DEVNULL)
+    
+    return HttpResponse("Stream iniciado.")
 
 @csrf_exempt
 def start_stream(request, ip):

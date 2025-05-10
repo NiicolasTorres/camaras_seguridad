@@ -39,19 +39,39 @@ async function waitForPlaylist(url, attempts = 10) {
 }
 
 async function detectStreamType(ip) {
-  const base = `${location.protocol}//${location.host}`;
-  const hlsUrl = `${location.protocol}//${location.host}/hls/${ip}.m3u8`;
+    console.log("Entrando a detectStreamType");
+    const base = `${location.protocol}//${location.host}`;
+    const hlsUrl = `${base}/hls/${ip}.m3u8`;
 
-  await fetch(`${base}/start_stream/${ip}/`);
+    await fetch(`${base}/start_stream/${ip}/`);
 
+    const endpoints = [
+      {
+        type: 'HLS',
+        url: hlsUrl,
+        check: async (url) => await waitForPlaylist(url),
+      },
+      {
+        type: 'MJPEG',
+        url: `${base}/proxy_stream/${ip}/`,
+        check: async (url) => {
+          try {
+            const res = await fetch(url, { method: 'HEAD' });
+            return res.ok;
+          } catch {
+            return false;
+          }
+        }
+      }
+    ];
+    console.log("endpoints:", endpoints); 
+    for (const endpoint of endpoints) {
+      const ok = await endpoint.check(endpoint.url);
+      if (ok) return endpoint;
+    }
 
-  for (const endpoint of endpoints) {
-    const ok = await endpoint.check(endpoint.url);
-    if (ok) return endpoint;
+    return null;
   }
-
-  return null;
-}
 
 async function setDefaultCamera() {
   const status = document.getElementById("status-message");

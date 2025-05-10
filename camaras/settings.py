@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'reconocimiento',
     'cuentas',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -37,6 +38,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
+]
+
+CORS_ALLOWED_ORIGINS = [
+    'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app/',
 ]
 
 ROOT_URLCONF = 'camaras.urls'

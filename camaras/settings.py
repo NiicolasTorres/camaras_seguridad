@@ -42,7 +42,23 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app/',
+    'https://app.silenteye.com.mx',
+    'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app',  
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS = [
+    'content-type',
+    'accept',
+    'x-requested-with',
+    'authorization', 
+]
+
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://app.silenteye.com.mx',
+    'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app',
 ]
 
 ROOT_URLCONF = 'camaras.urls'

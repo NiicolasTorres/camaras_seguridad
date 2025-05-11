@@ -98,7 +98,6 @@ def iniciar_stream(request, ip, stream_name):
 def start_stream(request, ip):
     response = JsonResponse({'message': 'Stream iniciado'})
 
-    # Agregar encabezados CORS explícitamente
     response["Access-Control-Allow-Origin"] = "https://app.silenteye.com.mx"
     response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     response["Access-Control-Allow-Headers"] = "Content-Type"

@@ -96,13 +96,21 @@ def iniciar_stream(request, ip, stream_name):
 
 @csrf_exempt
 def start_stream(request, ip):
+    response = JsonResponse({'message': 'Stream iniciado'})
+
+    # Agregar encabezados CORS explícitamente
+    response["Access-Control-Allow-Origin"] = "https://app.silenteye.com.mx"
+    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response["Access-Control-Allow-Headers"] = "Content-Type"
+
     try:
         stream_name = slugify_ip(ip)
         iniciar_stream(request, ip, stream_name)
-        return JsonResponse({'message': 'Stream iniciado'})
     except Exception as e:
-        return JsonResponse({'error': str(e)}, status=500)
-
+        response = JsonResponse({'error': str(e)}, status=500)
+        response["Access-Control-Allow-Origin"] = "https://app.silenteye.com.mx"
+    
+    return response
 
 @csrf_exempt
 def proxy_camera(request, camera_ip):

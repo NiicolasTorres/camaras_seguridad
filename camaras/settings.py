@@ -31,6 +31,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware', 
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -38,12 +39,17 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
 ]
+
+CORS_ORIGIN_ALLOW_ALL = False
 
 CORS_ALLOWED_ORIGINS = [
     'https://app.silenteye.com.mx',
-    'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app',  
+    'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app',
+]
+CSRF_TRUSTED_ORIGINS = [
+    'https://app.silenteye.com.mx',
+    'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app',
 ]
 
 CORS_ALLOW_CREDENTIALS = True

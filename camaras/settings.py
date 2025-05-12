@@ -42,6 +42,8 @@ MIDDLEWARE = [
 ]
 
 CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     'https://app.silenteye.com.mx',
@@ -52,7 +54,6 @@ CSRF_TRUSTED_ORIGINS = [
     'https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app',
 ]
 
-CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
     'content-type',

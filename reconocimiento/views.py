@@ -96,21 +96,20 @@ def iniciar_stream(request, ip, stream_name):
 
 @csrf_exempt
 def start_stream(request, ip):
-    if request.method == "OPTIONS":
-        resp = JsonResponse({})
-        resp["Access-Control-Allow-Origin"]  = "*"
-        resp["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-        resp["Access-Control-Allow-Headers"] = "Content-Type"
-        return resp
-
+    resp_data = {}
     try:
         stream_name = slugify_ip(ip)
         iniciar_stream(request, ip, stream_name)
-        resp = JsonResponse({'message': 'Stream iniciado'})
+        resp_data = {'message': 'Stream iniciado'}
+        status_code = 200
     except Exception as e:
-        resp = JsonResponse({'error': str(e)}, status=500)
-    
+        resp_data = {'error': str(e)}
+        status_code = 500
+
+    resp = JsonResponse(resp_data, status=status_code)
     resp["Access-Control-Allow-Origin"] = "https://app.silenteye.com.mx"
+    resp["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    resp["Access-Control-Allow-Headers"] = "Content-Type"
     return resp
 
 @csrf_exempt

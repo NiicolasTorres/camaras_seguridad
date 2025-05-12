@@ -40,10 +40,10 @@ async function waitForPlaylist(url, attempts = 10) {
 
 async function detectStreamType(ip) {
     console.log("Entrando a detectStreamType");
-    const base = "https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app/";
-    const proxyUrl = `${base}proxy_stream/${ip}/`;
+    const base = "https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app";
+    const proxyUrl = `${base}/proxy_stream/${ip}/`;
 
-    await fetch(`${base}start_stream/${ip}/`);
+    await fetch(`${base}/start_stream/${ip}/`);
 
     const endpoints = [
       {

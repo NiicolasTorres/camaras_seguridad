@@ -112,6 +112,12 @@ def start_stream(request, ip):
     resp["Access-Control-Allow-Headers"] = "Content-Type"
     return resp
 
+def add_cors_headers(response):
+    response["Access-Control-Allow-Origin"] = "https://app.silenteye.com.mx"
+    response["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
+
 @csrf_exempt
 def proxy_camera(request, camera_ip):
     import requests
@@ -141,11 +147,13 @@ def proxy_stream(request, camera_ip):
     try:
         upstream = requests.get(url, stream=True, timeout=5)
     except Exception as e:
-        return HttpResponseNotFound(f"No se pudo conectar a {url}: {e}")
-    return StreamingHttpResponse(
+        return add_cors_headers(HttpResponseNotFound(f"No se pudo conectar a {url}: {e}"))
+    
+    resp = StreamingHttpResponse(
         streaming_content=upstream.iter_content(chunk_size=8192),
         content_type=upstream.headers.get('Content-Type'),
     )
+    return add_cors_headers(resp)
 
 def set_default_camera(request, camera_id):
     try:

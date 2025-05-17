@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'reconocimiento',
     'cuentas',
     'corsheaders',
+    'channels'
 ]
 
 MIDDLEWARE = [
@@ -94,7 +95,16 @@ TEMPLATES = [
 
 
 WSGI_APPLICATION = 'camaras.wsgi.application'
+ASGI_APPLICATION = 'camaras.asgi.application'
 
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
 
 DATABASES = {
     'default': {

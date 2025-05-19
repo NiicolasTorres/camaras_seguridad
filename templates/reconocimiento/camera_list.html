@@ -136,20 +136,23 @@ async function startWebRTC(ip, videoElement) {
 
     const data = await response.json();
 
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        {
-          urls: [
-            "stun:app.silenteye.com.mx:3478",
-            "turn:app.silenteye.com.mx:3478?transport=udp",
-            "turn:app.silenteye.com.mx:3478?transport=tcp",
-            "turns:app.silenteye.com.mx:5349?transport=tcp"
-          ],
-          username: "usuario",
-          credential: "clave"
-        }
-      ]
-    });
+    const iceServers = [
+      {
+        urls: 'turn:app.silenteye.com.mx:3478?transport=udp',
+        username: 'usuario',
+        credential: 'clave'
+      },
+      {
+        urls: 'turn:app.silenteye.com.mx:5349?transport=tcp',
+        username: 'usuario',
+        credential: 'clave'
+      },
+      {
+        urls: 'stun:app.silenteye.com.mx:3478'
+      }
+    ];
+
+    const pc = new RTCPeerConnection({ iceServers });
 
     pc.ontrack = (event) => {
       videoElement.srcObject = event.streams[0];

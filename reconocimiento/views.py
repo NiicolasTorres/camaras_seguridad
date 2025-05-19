@@ -79,7 +79,7 @@ def home(request):
     return render(request, 'home.html', {'cameras': cameras})
 
 def iniciar_stream(request, ip, stream_name):
-    output_dir = "/tmp/hls"
+    output_dir = "/var/www/media_streams"
     os.makedirs(output_dir, exist_ok=True)
     log_path = os.path.join(output_dir, f"{stream_name}.log")
     proxy_url = f"http://{request.get_host()}/proxy_stream/{ip}/"

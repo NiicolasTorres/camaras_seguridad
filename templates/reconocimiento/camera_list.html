@@ -56,7 +56,10 @@ async function detectStreamType(ip) {
         url: proxyUrl,
         check: async (url) => {
           try {
-            const res = await fetch(url, { method: 'HEAD' });
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 500);
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeout);
             return res.ok;
           } catch {
             return false;
@@ -64,6 +67,7 @@ async function detectStreamType(ip) {
         }
       }
     ];
+
 
     for (const endpoint of endpoints) {
       const ok = await endpoint.check(endpoint.url);

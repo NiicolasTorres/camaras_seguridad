@@ -198,6 +198,13 @@ def register_and_set_default_camera(request):
         traceback.print_exc()
         return JsonResponse({"error": "Error interno del servidor"}, status=500)
     
+def serve_m3u8(request, ip):
+    filepath = f"/var/www/media_streams/{ip}.m3u8"
+    if os.path.exists(filepath):
+        return FileResponse(open(filepath, 'rb'), content_type='application/vnd.apple.mpegurl')
+    else:
+        return HttpResponseNotFound("El archivo .m3u8 no existe.")
+    
 
 def camera_list(request):
     cameras = Camera.objects.all()

@@ -98,7 +98,7 @@ def iniciar_stream(request, ip, stream_name):
 def start_stream(request, ip):
     resp_data = {}
     try:
-        stream_name = slugify_ip(ip)
+        stream_name = ip
         iniciar_stream(request, ip, stream_name)
         resp_data = {'message': 'Stream iniciado'}
         status_code = 200
@@ -147,13 +147,16 @@ def proxy_stream(request, camera_ip):
     try:
         upstream = requests.get(url, stream=True, timeout=5)
     except Exception as e:
-        return add_cors_headers(HttpResponseNotFound(f"No se pudo conectar a {url}: {e}"))
-    
+        return add_cors_headers(
+            HttpResponseNotFound(f"No se pudo conectar a {url}: {e}")
+        )
+
     resp = StreamingHttpResponse(
-        streaming_content=upstream.iter_content(chunk_size=8192),
+        upstream.iter_content(chunk_size=8192),
         content_type=upstream.headers.get('Content-Type'),
     )
     return add_cors_headers(resp)
+
 
 def set_default_camera(request, camera_id):
     try:

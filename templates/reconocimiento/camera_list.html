@@ -40,7 +40,7 @@ async function waitForPlaylist(url, attempts = 10) {
 
 async function detectStreamType(ip) {
     console.log("Entrando a detectStreamType");
-    const base = "https://ad66-2a02-c207-2254-5754-00-1.ngrok-free.app";
+    const base = "https://app.silenteye.com.mx";
     const proxyUrl = `${base}/proxy_stream/${ip}/`;
 
     await fetch(`${base}/start_stream/${ip}/`);
@@ -131,7 +131,21 @@ async function startWebRTC(ip, videoElement) {
     });
 
     const data = await response.json();
-    const pc = new RTCPeerConnection();
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        {
+          urls: [
+            "stun:app.silenteye.com.mx:3478",
+            "turn:app.silenteye.com.mx:3478?transport=udp",
+            "turn:app.silenteye.com.mx:3478?transport=tcp",
+            "turns:app.silenteye.com.mx:5349?transport=tcp"
+          ],
+          username: "usuario",
+          credential: "clave"
+        }
+      ]
+    });
 
     pc.ontrack = (event) => {
       videoElement.srcObject = event.streams[0];
@@ -153,5 +167,6 @@ async function startWebRTC(ip, videoElement) {
     status.innerText = '❌ Error al conectar por WebRTC.';
   }
 }
+
 </script>
 {% endblock %}

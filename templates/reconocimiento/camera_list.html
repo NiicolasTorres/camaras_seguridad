@@ -48,7 +48,7 @@ async function detectStreamType(ip) {
     const endpoints = [
       {
         type: 'HLS',
-        url: `${base}media_streams/${ip}.m3u8`,
+        url: `${base}/media_streams/${ip}.m3u8`,
         check: async (url) => await waitForPlaylist(url),
       },
       {

@@ -64,6 +64,7 @@ def manifest(request):
 
 
 def home(request): 
+    print('is_secure:', request.is_secure())
     if request.user.is_authenticated:
         user_profile = UserProfile.objects.filter(user=request.user).first()  
         cameras = user_profile.cameras.all() if user_profile else []  

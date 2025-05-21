@@ -18,6 +18,9 @@ CSRF_TRUSTED_ORIGINS = [
 
 LOGIN_REDIRECT_URL = '/profile/'
 
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

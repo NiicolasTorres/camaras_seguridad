@@ -8,20 +8,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-ohkd*@hy#$&id&aah)l-zjteu^xtvb(s0u)_db=&3uo%@yc@9!'
 
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['app.silenteye.com.mx', '75.119.148.43', 'localhost']
+ALLOWED_HOSTS = ['app.silenteye.com.mx', '75.119.148.43']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://app.silenteye.com.mx',
 ]
 
 LOGIN_REDIRECT_URL = '/profile/'
-
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
-SESSION_COOKIE_SECURE = True
-CSRF_COOKIE_SECURE = True
 
 INSTALLED_APPS = [
     'django.contrib.admin',

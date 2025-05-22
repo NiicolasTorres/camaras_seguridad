@@ -5,7 +5,7 @@ from cuentas.views import *
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('', include('reconocimiento.urls')),  
     path('', home, name='home'),
-    path('reconocimiento/', include('reconocimiento.urls')),  
-    path('cuentas/', include('cuentas.urls')),  
+    path('', include('cuentas.urls')),
 ]

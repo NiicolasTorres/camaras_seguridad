@@ -45,7 +45,7 @@ async function loadCamera() {
     return;
   }
 
-  const url = `https://app.silenteye.com.mx/hls/${streamId}.m3u8`;
+  const url = `https://app.silenteye.com.mx/hls/${streamId}/index.m3u8`;
   status.className = 'alert alert-info';
   status.innerText = '🔍 Verificando disponibilidad del stream...';
 

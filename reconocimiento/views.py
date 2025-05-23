@@ -125,43 +125,18 @@ def add_cors_headers(response):
     return response
 
 @csrf_exempt
-def proxy_camera(request, camera_ip):
-    import requests
-    from django.http import StreamingHttpResponse
-
-    if not camera_ip:
-        return HttpResponseNotFound("IP no proporcionada")
-
-    try:
-        stream_url = f"http://{camera_ip}:8080/video" 
-
-        def generate():
-            with requests.get(stream_url, stream=True) as r:
-                for chunk in r.iter_content(chunk_size=1024):
-                    if chunk:
-                        yield chunk
-
-        return StreamingHttpResponse(generate(), content_type="multipart/x-mixed-replace; boundary=--frame")
-    
-    except Exception as e:
-        return HttpResponse(f"Error: {str(e)}", status=500)
-
-
-@csrf_exempt
-def proxy_stream(request, camera_ip):
+def proxy_camera_stream(request, camera_ip):
     url = f'http://{camera_ip}:8080/video'
     try:
         upstream = requests.get(url, stream=True, timeout=5)
-    except Exception as e:
-        return add_cors_headers(
-            HttpResponseNotFound(f"No se pudo conectar a {url}: {e}")
+        response = StreamingHttpResponse(
+            upstream.iter_content(chunk_size=8192),
+            content_type=upstream.headers.get('Content-Type', 'video/mp2t'),
         )
+        return add_cors_headers(response)
+    except Exception as e:
+        return add_cors_headers(HttpResponseNotFound(f"No se pudo conectar a {url}: {e}"))
 
-    resp = StreamingHttpResponse(
-        upstream.iter_content(chunk_size=8192),
-        content_type=upstream.headers.get('Content-Type'),
-    )
-    return add_cors_headers(resp)
 
 
 def set_default_camera(request, camera_id):
@@ -207,13 +182,20 @@ def register_and_set_default_camera(request):
         traceback.print_exc()
         return JsonResponse({"error": "Error interno del servidor"}, status=500)
     
-def serve_m3u8(request, ip):
-    filepath = f"/var/www/media_streams/{ip}.m3u8"
-    if os.path.exists(filepath):
-        return FileResponse(open(filepath, 'rb'), content_type='application/vnd.apple.mpegurl')
+def serve_m3u8(request, stream_name):
+    path = f"/var/www/media_streams/{stream_name}/index.m3u8"
+    if os.path.exists(path):
+        return FileResponse(open(path, 'rb'), content_type='application/vnd.apple.mpegurl')
     else:
-        return HttpResponseNotFound("El archivo .m3u8 no existe.")
-    
+        return HttpResponseNotFound("El stream no está disponible.")
+
+def listar_streams_activos(request):
+    base_path = "/var/www/media_streams"
+    activos = [
+        d for d in os.listdir(base_path)
+        if os.path.isdir(os.path.join(base_path, d)) and os.path.exists(os.path.join(base_path, d, 'index.m3u8'))
+    ]
+    return JsonResponse({"activos": activos})
 
 def camera_list(request):
     cameras = Camera.objects.all()

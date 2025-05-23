@@ -80,19 +80,24 @@ def home(request):
     return render(request, 'home.html', {'cameras': cameras})
 
 def iniciar_stream(request, ip, stream_name):
-    output_dir = "/var/www/media_streams"
+    output_dir = f"/var/www/media_streams/{stream_name}"
     os.makedirs(output_dir, exist_ok=True)
-    log_path = os.path.join(output_dir, f"{stream_name}.log")
+    log_path = os.path.join(output_dir, "ffmpeg.log")
     proxy_url = f"http://127.0.0.1:8000/proxy_stream/{ip}/"
+
     subprocess.Popen([
         "ffmpeg",
         "-headers", "User-Agent: Mozilla/5.0\r\n",
         "-i", proxy_url,
         "-c:v", "libx264", "-preset", "veryfast",
-        "-f", "hls", "-hls_time", "2",
-        "-hls_list_size", "5", "-hls_flags", "delete_segments",
-        f"{output_dir}/{stream_name}.m3u8"
+        "-f", "hls",
+        "-hls_time", "2",
+        "-hls_list_size", "5",
+        "-hls_flags", "delete_segments",
+        "-hls_segment_filename", f"{output_dir}/segment_%03d.ts",
+        f"{output_dir}/index.m3u8"
     ], stderr=open(log_path, "w"), stdout=subprocess.DEVNULL)
+
 
 
 @csrf_exempt

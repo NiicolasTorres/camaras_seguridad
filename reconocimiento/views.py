@@ -83,7 +83,7 @@ def iniciar_stream(request, ip, stream_name):
     output_dir = "/var/www/media_streams"
     os.makedirs(output_dir, exist_ok=True)
     log_path = os.path.join(output_dir, f"{stream_name}.log")
-    proxy_url = f"http://{request.get_host()}/proxy_stream/{ip}/"
+    proxy_url = f"http://127.0.0.1:8000/proxy_stream/{ip}/"
     subprocess.Popen([
         "ffmpeg",
         "-headers", "User-Agent: Mozilla/5.0\r\n",
